@@ -390,6 +390,7 @@ if (!selectedItems.length) {
       {selectedOrder && <div className="panel orderDetail">
         <div className="sectionHead"><div><span className="orderTag">#{selectedOrder.id.slice(0,8).toUpperCase()}</span><h2>{prettyStatus(selectedOrder.status)}</h2></div><button className="iconBtn" onClick={()=>setSelectedOrder(null)}><X/></button></div>
         <div className="timeline">{history.map((h,i)=><div className="timelineRow" key={h.id||i}><span className="dot"></span><div><b>{prettyStatus(h.status)}</b><p>{h.note}</p><small>{new Date(h.created_at).toLocaleString()}</small></div></div>)}</div>
+        <div className="addressBox"><MapPin size={18}/><span>{selectedOrder.address_line}, {selectedOrder.landmark}, {selectedOrder.city}, {selectedOrder.state} — {selectedOrder.pincode}{selectedOrder.location_url && <> · <a href={selectedOrder.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
         <PinBox pins={pins}/>
         <h3>Services</h3>{items.map(i=><div className="miniRow" key={i.id}><span>{i.service_name} × {i.quantity}</span><b>{money(i.total_price ?? i.unit_price*i.quantity)}</b></div>)}
         <BillBox items={items.filter(i=>i.source==="customer").map(i=>({price:i.unit_price,quantity:i.quantity}))} technicianItems={items.filter(i=>i.source==="technician").map(i=>({price:i.unit_price,quantity:i.quantity}))} inspection={selectedOrder.inspection_fee} advance={selectedOrder.advance_amount} final={Boolean(selectedOrder.final_total)}/>
