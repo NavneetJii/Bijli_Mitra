@@ -529,7 +529,10 @@ a{ color: inherit; }
   .topbar{ padding: 10px 14px; }
   .brand{ font-size: 16px; }
   .topActions{ gap: 6px; }
-  .userBadge{ display:none; } /* name/role badge gives way to just the actions on very narrow screens */
+  .userBadge{ max-width: 42vw; display:flex; align-items:center; gap:4px; }
+  .userName{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .userBadge svg{ flex-shrink:0; }
+  .roleBadge{ display:none; } /* still shown in the Account tab; topbar stays compact */
   .ghostBtn, .primary, .secondary{ padding: 10px 14px; font-size: 13.5px; }
 
   .hero{ padding: 8px 0 20px; margin-bottom: 16px; gap: 20px; }
