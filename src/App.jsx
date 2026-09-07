@@ -462,7 +462,7 @@ function Electrician({user}) {
     <div className="electricianGrid">
       <main>
         <div className="sectionHead"><div><h2>Pending orders</h2><p>Only confirmed ₹21 bookings are shown.</p></div><button className="iconBtn" onClick={load}><RefreshCw size={17}/></button></div>
-        {pending.filter(o=>!active || o.id===active.id).map(o=><div className="pendingCard" key={o.id}><div><span className="orderId">#{o.id.slice(0,8).toUpperCase()}</span><h3>Service booking</h3><p>{o.address_line}, {o.city} — {o.pincode}</p><b>{money(o.estimated_total)} estimated</b></div><button className="primary" disabled={busy||Boolean(active)} onClick={()=>doAction(()=>acceptOrder(o.id,user.id))}>{active?"Busy":"Accept order"}</button></div>)}
+        {pending.filter(o=>!active || o.id===active.id).map(o=><div className="pendingCard" key={o.id}><div><span className="orderId">#{o.id.slice(0,8).toUpperCase()}</span><h3>Service booking</h3>{o.customer_name && <p><b>{o.customer_name}</b>{o.customer_phone && <> · {o.customer_phone}</>}</p>}<p>{o.address_line}, {o.city} — {o.pincode}</p><b>{money(o.estimated_total)} estimated</b></div><button className="primary" disabled={busy||Boolean(active)} onClick={()=>doAction(()=>acceptOrder(o.id,user.id))}>{active?"Busy":"Accept order"}</button></div>)}
         {!pending.length&&<div className="empty">No confirmed pending orders.</div>}
         <h2 className="subHeading">My assigned orders</h2>
         {assigned.map(o=><button className={`assignedCard ${selected?.id===o.id?"selected":""}`} key={o.id} onClick={()=>selectOrder(o)}><span>#{o.id.slice(0,8).toUpperCase()}</span><b>{prettyStatus(o.status)}</b><span>{money(o.final_total||o.estimated_total)}</span></button>)}
@@ -470,6 +470,7 @@ function Electrician({user}) {
       <aside className="panel technicianPanel">
         {!selected?<div className="empty"><Wrench size={30}/><p>Select an assigned order.</p></div>:<>
           <div className="sectionHead"><div><span className="orderTag">#{selected.id.slice(0,8).toUpperCase()}</span><h2>{prettyStatus(selected.status)}</h2></div></div>
+          {selected.customer_name && <div className="addressBox"><User size={18}/><span><b>{selected.customer_name}</b>{selected.customer_phone && <> · {selected.customer_phone}</>}</span></div>}
           <div className="addressBox"><MapPin size={18}/><span>{selected.address_line}, {selected.landmark}, {selected.city}, {selected.state} — {selected.pincode}{selected.location_url && <> · <a href={selected.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
           <h3>Order services</h3>{items.map(i=><div className="miniRow" key={i.id}>
             <span>{i.service_name} × {i.quantity} <small>{i.source}</small></span>
