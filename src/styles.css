@@ -521,7 +521,7 @@ a{ color: inherit; }
    actions, and larger tap targets everywhere a finger (not a cursor) is
    doing the tapping. */
 @media (max-width: 480px){
-  .page{ padding: 16px 14px 56px; }
+  .page{ padding: 8px 12px 48px; }
   h1, .heroCopy h1{ font-size: 22px; }
   h2{ font-size: 18px; }
   body{ font-size: 14px; }
@@ -535,7 +535,7 @@ a{ color: inherit; }
   .roleBadge{ display:none; } /* still shown in the Account tab; topbar stays compact */
   .ghostBtn, .primary, .secondary{ padding: 10px 14px; font-size: 13.5px; }
 
-  .hero{ padding: 8px 0 20px; margin-bottom: 16px; gap: 20px; }
+  .hero{ padding: 0 0 10px; margin-bottom: 10px; gap: 12px; }
   .ticketStub{ flex-basis: 100%; align-self: stretch; transform: none; }
   .ticketStub::before, .ticketStub::after{ display:none; }
 
