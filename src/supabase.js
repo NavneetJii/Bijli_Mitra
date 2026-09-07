@@ -244,10 +244,38 @@ export async function verifyCompletedPin(orderId, electricianId, pin) {
  * Create an Edge Function such as "create-cashfree-payment"
  * and call it here when you are ready.
  */
-async function openCashfreeCheckout(body) {
+async function invokeFunction(name, body) {
   if (!supabase) throw new Error("Supabase is not configured.");
-  const { data, error } = await supabase.functions.invoke("create-cashfree-payment", { body });
-  if (error) throw error;
+
+  // Proactively refresh the session before every call that needs auth. A
+  // final payment can happen much later than the customer's last active
+  // interaction (after the whole electrician visit), so the token they
+  // logged in with may have gone stale by then. getSession() refreshes it
+  // if needed and returns the current one either way.
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session) {
+    throw new Error("Your session has expired. Please log in again and retry.");
+  }
+
+  const { data, error } = await supabase.functions.invoke(name, {
+    body,
+    headers: { Authorization: `Bearer ${session.access_token}` }
+  });
+
+  if (error) {
+    // supabase-js only gives a generic "non-2xx status code" message by
+    // default -- the real reason is in the response body, which we have to
+    // unwrap manually.
+    let detail = null;
+    try { detail = (await error.context?.json?.())?.error; } catch { /* ignore */ }
+    throw new Error(detail || error.message || "Request failed.");
+  }
+
+  return data;
+}
+
+async function openCashfreeCheckout(body) {
+  const data = await invokeFunction("create-cashfree-payment", body);
   if (!data?.payment_session_id) throw new Error("Cashfree payment session was not returned.");
 
   if (!window.Cashfree) throw new Error("Cashfree Checkout SDK is not loaded.");
@@ -286,11 +314,7 @@ export async function startCashfreeFinalCheckout(orderId) {
  * loaded in index.html. The customer scans it with their own UPI app.
  */
 export async function createFinalPaymentQr(orderId) {
-  if (!supabase) throw new Error("Supabase is not configured.");
-  const { data, error } = await supabase.functions.invoke("create-cashfree-payment", {
-    body: { payment_type: "final_payment", order_id: orderId, render_as: "qrcode" }
-  });
-  if (error) throw error;
+  const data = await invokeFunction("create-cashfree-payment", { payment_type: "final_payment", order_id: orderId, render_as: "qrcode" });
   if (!data?.qr_payload) throw new Error("Cashfree did not return a QR code for this order.");
 
   // Cashfree can return either a short UPI deep-link (upi://pay?...), which
