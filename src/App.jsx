@@ -41,7 +41,7 @@ function Header({ user, profile, role, onLogout, onLogin, onSignup }) {
   return <header className="topbar">
     <div className="brand"><span className="brandIcon"><Zap size={21}/></span><span>BijliMitra</span></div>
     <div className="topActions">
-      {user && <span className="userBadge"><User size={15}/> {profile?.full_name || user.email}{role==="electrician" && <span className="roleBadge">Electrician</span>}</span>}
+      {user && <span className="userBadge"><User size={15}/> <span className="userName">{profile?.full_name || user.email}</span>{role==="electrician" && <span className="roleBadge">Electrician</span>}</span>}
       {user && <button className="iconBtn" onClick={onLogout} title="Logout"><LogOut size={17}/></button>}
       {!user && (
   <>
@@ -394,7 +394,12 @@ if (!selectedItems.length) {
         <h3>Services</h3>{items.map(i=><div className="miniRow" key={i.id}><span>{i.service_name} × {i.quantity}</span><b>{money(i.total_price ?? i.unit_price*i.quantity)}</b></div>)}
         <BillBox items={items.filter(i=>i.source==="customer").map(i=>({price:i.unit_price,quantity:i.quantity}))} technicianItems={items.filter(i=>i.source==="technician").map(i=>({price:i.unit_price,quantity:i.quantity}))} inspection={selectedOrder.inspection_fee} advance={selectedOrder.advance_amount} final={Boolean(selectedOrder.final_total)}/>
         {selectedOrder.status==="final_bill_pending" && <button className="primary full" disabled={busy} onClick={confirmBill}>{busy?"Confirming…":"Confirm final bill"}</button>}
-        {selectedOrder.status==="final_payment_pending" && <button className="primary full" onClick={async()=>{try{await startCashfreeFinalCheckout(selectedOrder.id);setMsg("Cashfree checkout opened for the final bill.")}catch(e){setMsg(errorText(e))}}}><CreditCard size={17}/> Pay final bill</button>}
+        {selectedOrder.status==="final_payment_pending" && <button className="primary full" disabled={busy} onClick={async()=>{
+          setBusy(true); setMsg("");
+          try{ await startCashfreeFinalCheckout(selectedOrder.id); setMsg("Cashfree checkout opened for the final bill."); }
+          catch(e){ setMsg(errorText(e)); }
+          finally{ setBusy(false); }
+        }}><CreditCard size={17}/> {busy?"Opening checkout…":"Pay final bill"}</button>}
       </div>}
     </div>}
 
