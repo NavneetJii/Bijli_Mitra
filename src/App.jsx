@@ -148,32 +148,6 @@ function BillBox({items, technicianItems=[], inspection=INSPECTION_FEE, advance=
   </div>;
 }
 
-function ElectricianArt() {
-  return <svg className="electricianArt" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    {/* Body */}
-    <path d="M60 210 C60 150 78 128 110 128 C142 128 160 150 160 210 Z" fill="var(--ink)" opacity="0.9"/>
-    <rect x="94" y="118" width="32" height="26" rx="10" fill="#E3B98A"/>
-    {/* Head */}
-    <circle cx="110" cy="86" r="40" fill="#E3B98A"/>
-    {/* Smile */}
-    <path d="M92 96 Q110 112 128 96" stroke="var(--ink)" strokeWidth="4" fill="none" strokeLinecap="round"/>
-    <circle cx="94" cy="82" r="4.5" fill="var(--ink)"/>
-    <circle cx="126" cy="82" r="4.5" fill="var(--ink)"/>
-    {/* Helmet */}
-    <path d="M64 74 C64 42 156 42 156 74 L156 80 L64 80 Z" fill="var(--live)"/>
-    <rect x="56" y="78" width="108" height="12" rx="6" fill="var(--live)"/>
-    <circle cx="110" cy="50" r="6" fill="var(--live)"/>
-    {/* Raised arm + wrench */}
-    <path d="M150 150 C170 140 178 118 176 96" stroke="#E3B98A" strokeWidth="18" fill="none" strokeLinecap="round"/>
-    <g transform="translate(176 82) rotate(28)">
-      <rect x="-8" y="-32" width="16" height="60" rx="7" fill="var(--copper)"/>
-      <path d="M-14 -32 a14 14 0 1 1 28 0 a14 8 0 0 1 -10 8 l0 8 l-8 0 l0 -8 a14 8 0 0 1 -10 -8 z" fill="var(--copper)"/>
-    </g>
-    {/* Other arm */}
-    <path d="M70 150 C54 142 48 126 50 108" stroke="#E3B98A" strokeWidth="18" fill="none" strokeLinecap="round"/>
-  </svg>;
-}
-
 function PinBox({pins}) {
   if (!pins) return null;
   return <div className="pinBox">
@@ -424,9 +398,7 @@ if (!selectedItems.length) {
       </div>
     </div>}
     {tab==="orders" && selectedOrder && <div className="modalBackdrop" onClick={()=>setSelectedOrder(null)}>
-      <div className="modal orderDetail glass" onClick={e=>e.stopPropagation()}>
-        <ElectricianArt/>
-        <div className="orderDetailContent">
+      <div className="modal orderDetail" onClick={e=>e.stopPropagation()}>
         <div className="sectionHead"><div><span className="orderTag">#{selectedOrder.id.slice(0,8).toUpperCase()}</span><h2>{prettyStatus(selectedOrder.status)}</h2></div><button className="iconBtn" onClick={()=>setSelectedOrder(null)}><X/></button></div>
         <div className="timeline">{history.map((h,i)=><div className="timelineRow" key={h.id||i}><span className="dot"></span><div><b>{prettyStatus(h.status)}</b><p>{h.note}</p><small>{new Date(h.created_at).toLocaleString()}</small></div></div>)}</div>
         <div className="addressBox"><MapPin size={18}/><span>{selectedOrder.address_line}, {selectedOrder.landmark}, {selectedOrder.city}, {selectedOrder.state} — {selectedOrder.pincode}{selectedOrder.location_url && <> · <a href={selectedOrder.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
@@ -440,7 +412,6 @@ if (!selectedItems.length) {
           catch(e){ setMsg(errorText(e)); }
           finally{ setBusy(false); }
         }}><CreditCard size={17}/> {busy?"Opening checkout…":"Pay final bill"}</button>}
-        </div>
       </div>
     </div>}
 
