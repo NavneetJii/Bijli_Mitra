@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Zap, MapPin, ShoppingCart, User, LogOut, ClipboardList,
   Plus, Minus, CheckCircle2, Clock3, Wrench, CreditCard,
-  ShieldCheck, ChevronRight, X, RefreshCw
+  ShieldCheck, ChevronRight, ChevronLeft, X, RefreshCw
 } from "lucide-react";
 import {
   supabase, supabaseConfigured, currentUser, signIn, signUp, signOut,
@@ -179,6 +179,7 @@ function LocationModal({userId,onClose,onSaved}) {
 function Customer({user, profile, onRequireAuth}) {
   const [services,setServices]=useState(fallbackServices), [locations,setLocations]=useState([]), [orders,setOrders]=useState([]);
   const [cart,setCart]=useState({}), [locationId,setLocationId]=useState(""), [tab,setTab]=useState("book");
+  const [step,setStep]=useState(1), [agreed,setAgreed]=useState(false);
   const [selectedOrder,setSelectedOrder]=useState(null), [items,setItems]=useState([]), [history,setHistory]=useState([]);
   const [pins,setPins]=useState(null);
  const [locModal,setLocModal]=useState(false);
@@ -265,6 +266,7 @@ if (!selectedItems.length) {
 
       setMsg("Payment received. Confirming your booking…");
       setCart({});
+      setStep(1); setAgreed(false);
       // The webhook may take a moment longer than the checkout modal to
       // finish creating the order, so poll briefly for it to show up.
       setTab("orders");
@@ -316,54 +318,65 @@ if (!selectedItems.length) {
     </nav>
     {msg&&<div className="notice">{msg}</div>}
 
-    {tab==="book" && <div className="contentGrid">
-      <main>
-        <div className="sectionHead"><div><h2>Select services</h2><p>Choose multiple services and quantities.</p></div></div>
-        <div className="serviceGrid">{services.map(s=><ServiceCard key={s.id} s={s} qty={cart[s.id]||0} onChange={q=>setCart({...cart,[s.id]:q})}/>)}</div>
-      </main>
-      <aside className="sticky">
-        {user ? (
-  <div className="panel">
-    <h3>Service location</h3>
+    {tab==="book" && <div className="wizard">
+      {step===1 && <div className="wizardIntro">
+        <Zap size={34}/>
+        <h2>Ready to book an electrician?</h2>
+        <p>You'll pick your services, choose a saved location, and lock your slot with a small ₹21 token — fully adjusted into your final bill.</p>
+        <button className="primary" onClick={()=>setStep(2)}>Book Electrician</button>
+      </div>}
 
-    {locations.length ? (
-      <select
-        value={locationId}
-        onChange={e => setLocationId(e.target.value)}
-      >
-        <option value="">Select location</option>
+      {step===2 && <div className="contentGrid">
+        <main>
+          <div className="sectionHead"><div><h2>Select services</h2><p>Choose multiple services and quantities.</p></div></div>
+          <div className="serviceGrid">{services.map(s=><ServiceCard key={s.id} s={s} qty={cart[s.id]||0} onChange={q=>setCart({...cart,[s.id]:q})}/>)}</div>
+        </main>
+        <aside className="sticky">
+          <BillBox items={selectedItems}/>
+          <div className="wizardNav">
+            <button className="secondary" onClick={()=>setStep(1)}><ChevronLeft size={16}/> Back</button>
+            <button className="primary" disabled={!selectedItems.length} onClick={()=>setStep(3)}>Confirm items</button>
+          </div>
+        </aside>
+      </div>}
 
-        {locations.map(l => (
-          <option key={l.id} value={l.id}>
-            {l.address_line}, {l.city} — {l.pincode}
-          </option>
-        ))}
-      </select>
-    ) : (
-      <p className="muted">
-        Add a service location before placing an order.
-      </p>
-    )}
+      {step===3 && <div className="panel">
+        <div className="sectionHead"><div><h2>Choose service location</h2><p>Pick where the electrician should visit.</p></div></div>
+        {!user && <p className="muted">Login or Sign up to add and select a service location.</p>}
+        {user && <>
+          {locations.length ? <div className="locationPickList">
+            {locations.map(l=><button key={l.id} className={`locationPick ${locationId===l.id?"selected":""}`} onClick={()=>setLocationId(l.id)}>
+              <MapPin size={17}/>
+              <div><b>{l.address_line}</b><span>{l.landmark} {l.city}, {l.state} — {l.pincode}</span></div>
+              {locationId===l.id && <ShieldCheck size={17}/>}
+            </button>)}
+          </div> : <p className="muted">No saved locations yet — add one below.</p>}
+          <button className="secondary full" onClick={()=>setLocModal(true)}><MapPin size={16}/> Add location</button>
+        </>}
+        <div className="wizardNav">
+          <button className="secondary" onClick={()=>setStep(2)}><ChevronLeft size={16}/> Back</button>
+          <button className="primary" disabled={!user||!locationId} onClick={()=>setStep(4)}>Confirm location</button>
+        </div>
+      </div>}
 
-    <button
-      className="secondary full"
-      onClick={() => setLocModal(true)}
-    >
-      <MapPin size={16}/> Add location
-    </button>
-  </div>
-) : (
-  <div className="panel">
-    <h3>Service location</h3>
-
-    <p className="muted">
-      Login or Sign Up to add and save your service location.
-    </p>
-  </div>
-)}
+      {step===4 && <div className="panel">
+        <div className="sectionHead"><div><h2>Review &amp; confirm</h2><p>Check everything before paying your booking token.</p></div></div>
         <BillBox items={selectedItems}/>
-        <button className="primary full" disabled={busy} onClick={placeOrder}>{busy?"Processing…":"Continue to ₹21 booking payment"}</button>
-      </aside>
+        <div className="termsBox">
+          <h3>Terms &amp; conditions</h3>
+          <ul>
+            <li>The ₹21 booking token confirms your slot and is fully adjusted into your final bill — it is non-refundable once paid.</li>
+            <li>The ₹121 visiting/inspection fee is included in every booking, regardless of the work done.</li>
+            <li>Any additional services the electrician adds on-site will be reflected in the final bill, which you'll be asked to confirm before final payment.</li>
+            <li>A Work Start PIN and Work Completed PIN are issued to you after booking — share these with your electrician only in person, at the relevant stage of the visit.</li>
+          </ul>
+        </div>
+        <label className="agreeRow"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)}/> I agree to the terms &amp; conditions above.</label>
+        <div className="wizardNav">
+          <button className="secondary" onClick={()=>setStep(3)}><ChevronLeft size={16}/> Back</button>
+          <button className="primary" disabled={busy||!agreed} onClick={placeOrder}>{busy?"Processing…":`Continue to ${money(ADVANCE)} booking payment`}</button>
+        </div>
+      </div>}
     </div>}
 
     {tab==="orders" && <div className="ordersLayout">
