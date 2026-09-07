@@ -557,6 +557,7 @@ a{ color: inherit; }
   .ghostBtn, .primary, .secondary{ padding: 10px 14px; font-size: 13.5px; }
 
   .hero{ padding: 0 0 10px; margin-bottom: 10px; gap: 12px; }
+  .ticketStub{ display: none; } /* redundant with the ₹21 shown again in the booking wizard; on a phone it was reading as dead space rather than a call-out */
   .ticketStub{ flex-basis: 100%; align-self: stretch; transform: none; }
   .ticketStub::before, .ticketStub::after{ display:none; }
 
