@@ -389,7 +389,8 @@ a{ color: inherit; }
 }
 
 /* ---------- orders ---------- */
-.ordersLayout{ display:grid; grid-template-columns: 320px 1fr; gap: 24px; align-items:start; }
+.ordersLayout{ max-width: 640px; }
+.orderDetail.modal{ max-width: 520px; }
 .orderList{ display:flex; flex-direction:column; gap:10px; }
 .orderCard{
   display:flex; align-items:center; justify-content:space-between;

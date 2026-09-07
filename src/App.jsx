@@ -396,7 +396,9 @@ if (!selectedItems.length) {
           <div className="orderRight"><b>{money(o.final_total || o.estimated_total)}</b><ChevronRight/></div>
         </button>)}
       </div>
-      {selectedOrder && <div className="panel orderDetail">
+    </div>}
+    {tab==="orders" && selectedOrder && <div className="modalBackdrop" onClick={()=>setSelectedOrder(null)}>
+      <div className="modal orderDetail" onClick={e=>e.stopPropagation()}>
         <div className="sectionHead"><div><span className="orderTag">#{selectedOrder.id.slice(0,8).toUpperCase()}</span><h2>{prettyStatus(selectedOrder.status)}</h2></div><button className="iconBtn" onClick={()=>setSelectedOrder(null)}><X/></button></div>
         <div className="timeline">{history.map((h,i)=><div className="timelineRow" key={h.id||i}><span className="dot"></span><div><b>{prettyStatus(h.status)}</b><p>{h.note}</p><small>{new Date(h.created_at).toLocaleString()}</small></div></div>)}</div>
         <div className="addressBox"><MapPin size={18}/><span>{selectedOrder.address_line}, {selectedOrder.landmark}, {selectedOrder.city}, {selectedOrder.state} — {selectedOrder.pincode}{selectedOrder.location_url && <> · <a href={selectedOrder.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
@@ -410,8 +412,9 @@ if (!selectedItems.length) {
           catch(e){ setMsg(errorText(e)); }
           finally{ setBusy(false); }
         }}><CreditCard size={17}/> {busy?"Opening checkout…":"Pay final bill"}</button>}
-      </div>}
+      </div>
     </div>}
+
 
     {tab==="account" && <div className="accountGrid">
       <div className="panel"><h2>My account</h2><div className="profileRows"><div><span>Name</span><b>{profile?.full_name||"—"}</b></div><div><span>Email</span><b>{user.email}</b></div><div><span>Phone</span><b>{profile?.phone||"—"}</b></div><div><span>Role</span><b>Customer</b></div></div></div>
