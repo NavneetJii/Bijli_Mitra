@@ -178,7 +178,7 @@ function LocationModal({userId,onClose,onSaved}) {
 
 function Customer({user, profile, onRequireAuth}) {
   const [services,setServices]=useState(fallbackServices), [locations,setLocations]=useState([]), [orders,setOrders]=useState([]);
-  const [cart,setCart]=useState({}), [locationId,setLocationId]=useState(""), [tab,setTab]=useState("book");
+  const [cart,setCart]=useState({}), [locationId,setLocationId]=useState(""), [tab,setTab]=useState("home");
   const [step,setStep]=useState(1), [agreed,setAgreed]=useState(false);
   const [selectedOrder,setSelectedOrder]=useState(null), [items,setItems]=useState([]), [history,setHistory]=useState([]);
   const [pins,setPins]=useState(null);
@@ -289,33 +289,42 @@ if (!selectedItems.length) {
     setBusy(true);try{await confirmFinalBill(selectedOrder.id,user.id);await refreshOrder();setMsg("Final bill confirmed.");}catch(e){setMsg(errorText(e))}finally{setBusy(false)}
   }
   return <div className="page">
-    <section className="hero">
-      <div className="heroCopy">
-        <h1>Book a certified electrician for today.</h1>
-        <p>Flat ₹121 visit fee, priced services, and a ₹21 token that locks your slot — fully adjusted into the final bill.</p>
-      </div>
-      <div className="ticketStub">
-        <div className="ticketStubTop">
-          <span>Booking token</span>
-          <ShieldCheck size={18}/>
+    {tab==="home" ? <>
+      <section className="hero">
+        <div className="heroCopy">
+          <h1>Book a certified electrician for today.</h1>
+          <p>Flat ₹121 visit fee, priced services, and a ₹21 token that locks your slot — fully adjusted into the final bill.</p>
         </div>
-        <div className="ticketStubAmount">{money(ADVANCE)}</div>
-        <div className="ticketStubFoot">Verified by Cashfree · adjusted into your bill</div>
-      </div>
-    </section>
-    <nav className="tabs">
-      <button className={tab==="book"?"active":""} onClick={()=>setTab("book")}><ShoppingCart/>Book service</button>
-      {user && (
-  <button onClick={() => setTab("orders")}>
-    My orders
-  </button>
-)}
-     {user && (
-  <button onClick={() => setTab("account")}>
-    Account
-  </button>
-)}
-    </nav>
+        <div className="ticketStub">
+          <div className="ticketStubTop">
+            <span>Booking token</span>
+            <ShieldCheck size={18}/>
+          </div>
+          <div className="ticketStubAmount">{money(ADVANCE)}</div>
+          <div className="ticketStubFoot">Verified by Cashfree · adjusted into your bill</div>
+        </div>
+      </section>
+      <nav className="menuGrid">
+        <button className="menuCard" onClick={()=>setTab("book")}>
+          <ShoppingCart size={20}/>
+          <div><b>Book service</b><span>Schedule a certified electrician</span></div>
+          <ChevronRight size={18}/>
+        </button>
+        {user && <button className="menuCard" onClick={()=>setTab("orders")}>
+          <ClipboardList size={20}/>
+          <div><b>My orders</b><span>Track bookings and work status</span></div>
+          <ChevronRight size={18}/>
+        </button>}
+        {user && <button className="menuCard" onClick={()=>setTab("account")}>
+          <User size={20}/>
+          <div><b>Account</b><span>Profile and saved locations</span></div>
+          <ChevronRight size={18}/>
+        </button>}
+      </nav>
+    </> : <div className="pageHeader">
+      <button className="iconBtn" onClick={()=>setTab("home")}><ChevronLeft size={18}/></button>
+      <h2>{tab==="book"?"Book service":tab==="orders"?"My orders":"Account"}</h2>
+    </div>}
     {msg&&<div className="notice">{msg}</div>}
 
     {tab==="book" && <div className="wizard">

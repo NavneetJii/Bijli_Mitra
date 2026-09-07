@@ -317,6 +317,27 @@ a{ color: inherit; }
   font-size: 13px; margin-bottom: 18px;
 }
 
+/* ---------- home menu + page header ---------- */
+.menuGrid{ display:flex; flex-direction:column; gap:10px; max-width: 520px; }
+.menuCard{
+  display:flex; align-items:center; gap:14px; text-align:left;
+  background:#fff; border:1px solid var(--line); border-radius: var(--radius-m);
+  padding: 16px 18px; cursor:pointer;
+}
+.menuCard:hover{ border-color: var(--copper); }
+.menuCard svg:first-child{ color: var(--copper); flex-shrink:0; }
+.menuCard div{ flex:1; display:flex; flex-direction:column; }
+.menuCard b{ font-size: 15px; }
+.menuCard span{ font-size: 12.5px; color: var(--muted); margin-top:2px; }
+.menuCard svg:last-child{ color: var(--muted); flex-shrink:0; }
+
+.pageHeader{
+  display:flex; align-items:center; gap:12px;
+  margin-bottom: 18px; padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.pageHeader h2{ margin:0; }
+
 /* ---------- booking grid ---------- */
 .contentGrid{ display:grid; grid-template-columns: 1fr 300px; gap: 28px; align-items:start; }
 .sectionHead{ display:flex; align-items:flex-start; justify-content:space-between; margin-bottom: 14px; gap: 10px; }
