@@ -335,3 +335,18 @@ export async function createFinalPaymentQr(orderId) {
     isSandbox: data.environment !== "production",
   };
 }
+
+/**
+ * Cash payment: the electrician received the remaining amount in person
+ * and taps this to close the order out directly -- no Cashfree involved
+ * at all. Records a payment row (payment_method: "cash") and runs the
+ * order through the exact same completion path a Cashfree payment would.
+ */
+export async function recordCashPayment(orderId, electricianId) {
+  const { data, error } = await supabase.rpc("complete_order_with_cash_payment", {
+    p_order_id: orderId,
+    p_electrician_id: electricianId
+  });
+  if (error) throw error;
+  return data;
+}

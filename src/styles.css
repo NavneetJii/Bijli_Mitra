@@ -518,6 +518,8 @@ a{ color: inherit; }
 }
 .qrBox img{ border-radius: var(--radius-s); max-width: 100%; height: auto; }
 .qrAmount{ font-family: var(--font-head); font-size: 24px; font-weight:700; color: var(--copper); }
+.cashDivider{ display:flex; align-items:center; gap:10px; margin: 14px 0; color: var(--muted); font-size: 12px; }
+.cashDivider::before, .cashDivider::after{ content:""; flex:1; height:1px; background: var(--line); }
 .sandboxHelper{
   margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--line);
   font-size: 12px; text-align: left; width: 100%;

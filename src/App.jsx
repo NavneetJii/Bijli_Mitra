@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Zap, MapPin, ShoppingCart, User, LogOut, ClipboardList,
   Plus, Minus, CheckCircle2, Clock3, Wrench, CreditCard,
-  ShieldCheck, ChevronRight, ChevronLeft, X, RefreshCw
+  ShieldCheck, ChevronRight, ChevronLeft, X, RefreshCw, Wallet
 } from "lucide-react";
 import {
   supabase, supabaseConfigured, currentUser, signIn, signUp, signOut,
@@ -11,7 +11,7 @@ import {
   confirmFinalBill, getPendingOrders, getElectricianProfile,
   getAssignedOrders, acceptOrder, startOrderWork, addTechnicianService,
   removeTechnicianService, generateFinalBill, verifyCompletedPin, startCashfreeBookingCheckout,
-  startCashfreeFinalCheckout, createFinalPaymentQr
+  startCashfreeFinalCheckout, createFinalPaymentQr, recordCashPayment
 } from "./supabase";
 
 const INSPECTION_FEE = 121;
@@ -524,6 +524,8 @@ function Electrician({user}) {
                 <p className="muted">This triggers Cashfree's real success webhook, which completes the order exactly like a genuine payment would.</p>
               </div>}
             </div>}
+            <div className="cashDivider"><span>or</span></div>
+            <button className="secondary full" disabled={busy} onClick={()=>doAction(()=>recordCashPayment(selected.id,user.id))}><Wallet size={16}/> {busy?"Marking as paid…":`Received ${money(selected.amount_due)} in cash`}</button>
           </div>}
         </>}
       </aside>
