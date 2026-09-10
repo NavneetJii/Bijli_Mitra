@@ -350,3 +350,36 @@ export async function recordCashPayment(orderId, electricianId) {
   if (error) throw error;
   return data;
 }
+
+/**
+ * Admin-only reads. RLS (is_admin()) enforces this server-side regardless
+ * of what the frontend asks for -- a non-admin session gets zero rows back
+ * from any of these, even if it somehow called them.
+ */
+export async function getDailyPayments(days = 30) {
+  const { data, error } = await supabase
+    .from("admin_daily_payments")
+    .select("*")
+    .limit(days);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getAdminElectricians() {
+  const { data, error } = await supabase
+    .from("electrician_profiles")
+    .select("id, availability, current_order_id, profiles(full_name, phone)")
+    .order("availability");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getAdminOrders(limit = 100) {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, status, customer_name, customer_phone, electrician_id, amount_paid, amount_due, estimated_total, final_total, advance_payment_status, final_payment_status, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data ?? [];
+}

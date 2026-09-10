@@ -11,7 +11,8 @@ import {
   confirmFinalBill, getPendingOrders, getElectricianProfile,
   getAssignedOrders, acceptOrder, startOrderWork, addTechnicianService,
   removeTechnicianService, generateFinalBill, verifyCompletedPin, startCashfreeBookingCheckout,
-  startCashfreeFinalCheckout, createFinalPaymentQr, recordCashPayment
+  startCashfreeFinalCheckout, createFinalPaymentQr, recordCashPayment,
+  getDailyPayments, getAdminElectricians, getAdminOrders
 } from "./supabase";
 
 const INSPECTION_FEE = 121;
@@ -41,7 +42,7 @@ function Header({ user, profile, role, onLogout, onLogin, onSignup }) {
   return <header className="topbar">
     <div className="brand"><span className="brandIcon"><Zap size={21}/></span><span>BijliMitra</span></div>
     <div className="topActions">
-      {user && <span className="userBadge"><User size={15}/> <span className="userName">{profile?.full_name || user.email}</span>{role==="electrician" && <span className="roleBadge">Electrician</span>}</span>}
+      {user && <span className="userBadge"><User size={15}/> <span className="userName">{profile?.full_name || user.email}</span>{role==="electrician" && <span className="roleBadge">Electrician</span>}{role==="admin" && <span className="roleBadge admin">Admin</span>}</span>}
       {user && <button className="iconBtn" onClick={onLogout} title="Logout"><LogOut size={17}/></button>}
       {!user && (
   <>
@@ -533,6 +534,92 @@ function Electrician({user}) {
   </div>;
 }
 
+function Admin({user}) {
+  const [dailyPayments,setDailyPayments]=useState([]);
+  const [electricians,setElectricians]=useState([]);
+  const [orders,setOrders]=useState([]);
+  const [msg,setMsg]=useState("");
+  const [loading,setLoading]=useState(true);
+
+  async function load(){
+    try{
+      const [dp, el, or] = await Promise.all([getDailyPayments(30), getAdminElectricians(), getAdminOrders(100)]);
+      setDailyPayments(dp); setElectricians(el); setOrders(or);
+    }catch(e){ setMsg(errorText(e)); }
+    finally{ setLoading(false); }
+  }
+  useEffect(()=>{ load(); },[]);
+
+  // Live updates -- the dashboard reflects new orders/payments/status
+  // changes the instant they happen, same as the customer/electrician views.
+  useEffect(()=>{
+    if(!supabase) return;
+    const channel = supabase.channel("admin-dashboard")
+      .on("postgres_changes",{event:"*",schema:"public",table:"orders"},load)
+      .on("postgres_changes",{event:"*",schema:"public",table:"payments"},load)
+      .on("postgres_changes",{event:"*",schema:"public",table:"electrician_profiles"},load)
+      .subscribe();
+    return ()=>{ supabase.removeChannel(channel); };
+  },[]);
+
+  if(loading) return <div className="page"><div className="loading"><Zap/> Loading dashboard…</div></div>;
+
+  return <div className="page">
+    <section className="dashHeader"><div><h1>Admin dashboard</h1><p>Payments, electrician status, and recent orders across the platform.</p></div></section>
+    {msg && <div className="notice">{msg}</div>}
+
+    <div className="adminGrid">
+      <div className="panel">
+        <div className="sectionHead"><div><h2>Daily payments</h2><p>Last {dailyPayments.length} days with activity.</p></div></div>
+        <div className="tableWrap">
+          <table className="adminTable">
+            <thead><tr><th>Date</th><th>Bookings</th><th>Final</th><th>Cash</th><th>Total</th></tr></thead>
+            <tbody>
+              {dailyPayments.map(d=><tr key={d.day}>
+                <td>{new Date(d.day).toLocaleDateString()}</td>
+                <td>{d.booking_count} · {money(d.booking_total)}</td>
+                <td>{d.final_count} · {money(d.final_total)}</td>
+                <td>{d.cash_count} · {money(d.cash_total)}</td>
+                <td><b>{money(d.total_amount)}</b></td>
+              </tr>)}
+              {!dailyPayments.length && <tr><td colSpan="5" className="muted">No payments yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="sectionHead"><h2>Electricians</h2></div>
+        {electricians.map(e=><div className="miniRow" key={e.id}>
+          <span>{e.profiles?.full_name || "—"} <small>{e.profiles?.phone}</small></span>
+          <span className={`availability ${e.availability}`}><span></span>{prettyStatus(e.availability)}</span>
+        </div>)}
+        {!electricians.length && <p className="muted">No electricians yet.</p>}
+      </div>
+    </div>
+
+    <div className="panel adminSection">
+      <div className="sectionHead"><div><h2>Recent orders</h2><p>Last {orders.length} orders.</p></div></div>
+      <div className="tableWrap">
+        <table className="adminTable">
+          <thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Paid</th><th>Due</th><th>Date</th></tr></thead>
+          <tbody>
+            {orders.map(o=><tr key={o.id}>
+              <td>#{o.id.slice(0,8).toUpperCase()}</td>
+              <td>{o.customer_name||"—"}<br/><small className="muted">{o.customer_phone}</small></td>
+              <td>{prettyStatus(o.status)}</td>
+              <td>{money(o.amount_paid)}</td>
+              <td>{money(o.amount_due)}</td>
+              <td>{new Date(o.created_at).toLocaleDateString()}</td>
+            </tr>)}
+            {!orders.length && <tr><td colSpan="6" className="muted">No orders yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>;
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -572,7 +659,7 @@ function App() {
   // picker) and comes straight from the profile -- there is no in-app
   // toggle. An electrician account only ever sees the electrician console;
   // a customer account only ever sees the booking storefront.
-  const effectiveRole = profile?.role === "electrician" ? "electrician" : "customer";
+  const effectiveRole = profile?.role === "electrician" ? "electrician" : profile?.role === "admin" ? "admin" : "customer";
 
 return (
  <>
@@ -621,6 +708,10 @@ return (
     ) : effectiveRole === "electrician" && user ? (
 
       <Electrician user={user} />
+
+    ) : effectiveRole === "admin" && user ? (
+
+      <Admin user={user} />
 
     ) : (
 
