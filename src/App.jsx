@@ -12,7 +12,7 @@ import {
   getAssignedOrders, acceptOrder, startOrderWork, addTechnicianService,
   removeTechnicianService, generateFinalBill, verifyCompletedPin, startCashfreeBookingCheckout,
   startCashfreeFinalCheckout, createFinalPaymentQr, recordCashPayment,
-  getDailyPayments, getAdminElectricians, getAdminOrders
+  getDailyPayments, getAdminElectricians, getAdminOrders, getAdminOrdersByDate
 } from "./supabase";
 
 const INSPECTION_FEE = 121;
@@ -553,6 +553,11 @@ function Admin({user}) {
   }
   useEffect(()=>{ load(); },[]);
 
+  // Fetching is triggered directly from the date input's onChange below --
+  // deliberately not through a useEffect watching selectedDate. Tying it
+  // straight to the one event that reliably fires (confirmed: the page
+  // title above updates correctly every time) removes any dependency on
+  // effect re-run timing.
   async function loadForDate(d){
     if(!d){ setDateOrders(null); return; }
     setDateLoading(true);
@@ -560,7 +565,6 @@ function Admin({user}) {
     catch(e){ setMsg(errorText(e)); }
     finally{ setDateLoading(false); }
   }
-  useEffect(()=>{ loadForDate(selectedDate); },[selectedDate]);
 
   // Live updates -- the dashboard reflects new orders/payments/status
   // changes the instant they happen, same as the customer/electrician views.
@@ -616,8 +620,12 @@ function Admin({user}) {
       <div className="sectionHead">
         <div><h2>{selectedDate ? `Orders on ${new Date(selectedDate).toLocaleDateString()}` : "Recent orders"}</h2><p>{selectedDate ? `${displayOrders.length} order(s) with current status.` : `Last ${orders.length} orders.`}</p></div>
         <div className="dateFilter">
-          <input type="date" value={selectedDate} onChange={e=>setSelectedDate(e.target.value)}/>
-          {selectedDate && <button className="iconBtn" title="Clear date filter" onClick={()=>setSelectedDate("")}><X size={16}/></button>}
+          <input type="date" value={selectedDate} onChange={e=>{
+            const d = e.target.value;
+            setSelectedDate(d);
+            loadForDate(d);
+          }}/>
+          {selectedDate && <button className="iconBtn" title="Clear date filter" onClick={()=>{ setSelectedDate(""); setDateOrders(null); }}><X size={16}/></button>}
         </div>
       </div>
       <div className="tableWrap">
