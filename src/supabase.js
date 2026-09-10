@@ -391,8 +391,13 @@ export async function getAdminOrders(limit = 100) {
  * window still work correctly.
  */
 export async function getAdminOrdersByDate(dateStr) {
-  const start = `${dateStr}T00:00:00.000Z`;
-  const end = new Date(new Date(start).getTime() + 24*60*60*1000).toISOString();
+  // Orders are an India-based business, so a "day" here means a calendar
+  // day in IST (fixed UTC+5:30, no DST) -- not a UTC day. Without this, any
+  // order placed between midnight and 5:30 AM IST would actually be stored
+  // (in UTC) on the *previous* date, and picking "today" would miss it.
+  const startIst = new Date(`${dateStr}T00:00:00+05:30`);
+  const start = startIst.toISOString();
+  const end = new Date(startIst.getTime() + 24*60*60*1000).toISOString();
   const { data, error } = await supabase
     .from("orders")
     .select("id, status, customer_name, customer_phone, electrician_id, amount_paid, amount_due, estimated_total, final_total, advance_payment_status, final_payment_status, created_at")
