@@ -540,6 +540,9 @@ function Admin({user}) {
   const [orders,setOrders]=useState([]);
   const [msg,setMsg]=useState("");
   const [loading,setLoading]=useState(true);
+  const [selectedDate,setSelectedDate]=useState("");
+  const [dateOrders,setDateOrders]=useState(null);
+  const [dateLoading,setDateLoading]=useState(false);
 
   async function load(){
     try{
@@ -550,19 +553,30 @@ function Admin({user}) {
   }
   useEffect(()=>{ load(); },[]);
 
+  async function loadForDate(d){
+    if(!d){ setDateOrders(null); return; }
+    setDateLoading(true);
+    try{ setDateOrders(await getAdminOrdersByDate(d)); }
+    catch(e){ setMsg(errorText(e)); }
+    finally{ setDateLoading(false); }
+  }
+  useEffect(()=>{ loadForDate(selectedDate); },[selectedDate]);
+
   // Live updates -- the dashboard reflects new orders/payments/status
   // changes the instant they happen, same as the customer/electrician views.
   useEffect(()=>{
     if(!supabase) return;
     const channel = supabase.channel("admin-dashboard")
-      .on("postgres_changes",{event:"*",schema:"public",table:"orders"},load)
+      .on("postgres_changes",{event:"*",schema:"public",table:"orders"},()=>{ load(); if(selectedDate) loadForDate(selectedDate); })
       .on("postgres_changes",{event:"*",schema:"public",table:"payments"},load)
       .on("postgres_changes",{event:"*",schema:"public",table:"electrician_profiles"},load)
       .subscribe();
     return ()=>{ supabase.removeChannel(channel); };
-  },[]);
+  },[selectedDate]);
 
   if(loading) return <div className="page"><div className="loading"><Zap/> Loading dashboard…</div></div>;
+
+  const displayOrders = selectedDate ? (dateOrders||[]) : orders;
 
   return <div className="page">
     <section className="dashHeader"><div><h1>Admin dashboard</h1><p>Payments, electrician status, and recent orders across the platform.</p></div></section>
@@ -599,12 +613,19 @@ function Admin({user}) {
     </div>
 
     <div className="panel adminSection">
-      <div className="sectionHead"><div><h2>Recent orders</h2><p>Last {orders.length} orders.</p></div></div>
+      <div className="sectionHead">
+        <div><h2>{selectedDate ? `Orders on ${new Date(selectedDate).toLocaleDateString()}` : "Recent orders"}</h2><p>{selectedDate ? `${displayOrders.length} order(s) with current status.` : `Last ${orders.length} orders.`}</p></div>
+        <div className="dateFilter">
+          <input type="date" value={selectedDate} onChange={e=>setSelectedDate(e.target.value)}/>
+          {selectedDate && <button className="iconBtn" title="Clear date filter" onClick={()=>setSelectedDate("")}><X size={16}/></button>}
+        </div>
+      </div>
       <div className="tableWrap">
         <table className="adminTable">
           <thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Paid</th><th>Due</th><th>Date</th></tr></thead>
           <tbody>
-            {orders.map(o=><tr key={o.id}>
+            {dateLoading && selectedDate && <tr><td colSpan="6" className="muted">Loading…</td></tr>}
+            {!dateLoading && displayOrders.map(o=><tr key={o.id}>
               <td>#{o.id.slice(0,8).toUpperCase()}</td>
               <td>{o.customer_name||"—"}<br/><small className="muted">{o.customer_phone}</small></td>
               <td>{prettyStatus(o.status)}</td>
@@ -612,7 +633,7 @@ function Admin({user}) {
               <td>{money(o.amount_due)}</td>
               <td>{new Date(o.created_at).toLocaleDateString()}</td>
             </tr>)}
-            {!orders.length && <tr><td colSpan="6" className="muted">No orders yet.</td></tr>}
+            {!dateLoading && !displayOrders.length && <tr><td colSpan="6" className="muted">{selectedDate ? "No orders on this date." : "No orders yet."}</td></tr>}
           </tbody>
         </table>
       </div>

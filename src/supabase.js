@@ -383,3 +383,22 @@ export async function getAdminOrders(limit = 100) {
   if (error) throw error;
   return data ?? [];
 }
+
+/**
+ * Orders created on one specific calendar day, for the admin dashboard's
+ * date picker. Queries the day directly (not just filtering whatever the
+ * "recent" list already loaded), so past dates outside the recent-100
+ * window still work correctly.
+ */
+export async function getAdminOrdersByDate(dateStr) {
+  const start = `${dateStr}T00:00:00.000Z`;
+  const end = new Date(new Date(start).getTime() + 24*60*60*1000).toISOString();
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, status, customer_name, customer_phone, electrician_id, amount_paid, amount_due, estimated_total, final_total, advance_payment_status, final_payment_status, created_at")
+    .gte("created_at", start)
+    .lt("created_at", end)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
