@@ -134,12 +134,16 @@ function ServiceCard({s, qty, onChange}) {
 }
 
 function BillBox({items, technicianItems=[], advance=ADVANCE, final=false}) {
+  const GST_RATE = 0.05;
   const customerTotal = items.reduce((a,x)=>a + Number(x.price||x.unit_price||0)*Number(x.quantity||1),0);
   const techTotal = technicianItems.reduce((a,x)=>a + Number(x.price||x.unit_price||0)*Number(x.quantity||1),0);
-  const total = customerTotal + techTotal;
+  const subtotal = customerTotal + techTotal;
+  const gst = Math.round(subtotal * GST_RATE * 100) / 100;
+  const total = subtotal + gst;
   return <div className="billBox">
-    <div className="billRow"><span>Base Service Pack (incl. GST)</span><b>{money(customerTotal)}</b></div>
+    <div className="billRow"><span>Base Service Pack</span><b>{money(customerTotal)}</b></div>
     {technicianItems.length>0 && <div className="billRow"><span>Technician Added Services</span><b>{money(techTotal)}</b></div>}
+    <div className="billRow"><span>GST (5%)</span><b>{money(gst)}</b></div>
     <div className="billRow strong"><span>{final ? "Final Total Work Amount" : "Estimated Total Work Amount"}</span><b>{money(total)}</b></div>
     <div className="billRow token"><span>Booking Token Paid (incl. GST)</span><b>{money(advance)}</b></div>
     <div className="billDue"><span>Amount Due</span><strong>{money(total)}</strong></div>
@@ -396,6 +400,7 @@ if (!selectedItems.length) {
           <h3>Terms &amp; conditions</h3>
           <ul>
             <li>The ₹51 booking token (inclusive of GST) confirms your slot. It is non-refundable once paid and is a separate charge — it is NOT adjusted into your final bill.</li>
+            <li>A 5% GST is added on top of the service amount (base pack plus any technician-added services) in your final bill.</li>
             <li>Any additional services the electrician adds on-site will be reflected in the final bill, which you'll be asked to confirm before final payment.</li>
             <li>A Work Start PIN and Work Completed PIN are issued to you after booking — share these with your electrician only in person, at the relevant stage of the visit.</li>
           </ul>
