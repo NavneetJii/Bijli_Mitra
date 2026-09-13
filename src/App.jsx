@@ -141,9 +141,9 @@ function BillBox({items, technicianItems=[], advance=ADVANCE, final=false}) {
     <div className="billRow"><span>Base Service Pack (incl. GST)</span><b>{money(customerTotal)}</b></div>
     {technicianItems.length>0 && <div className="billRow"><span>Technician Added Services</span><b>{money(techTotal)}</b></div>}
     <div className="billRow strong"><span>{final ? "Final Total Work Amount" : "Estimated Total Work Amount"}</span><b>{money(total)}</b></div>
-    <div className="billRow token"><span>Advance Booking Token</span><b>- {money(advance)}</b></div>
-    <div className="billDue"><span>Due Amount After Token</span><strong>{money(Math.max(0,total-advance))}</strong></div>
-    <div className="cancelNote">The ₹21.00 booking token is non-refundable once your slot is confirmed.</div>
+    <div className="billRow token"><span>Booking Token Paid</span><b>{money(advance)}</b></div>
+    <div className="billDue"><span>Amount Due</span><strong>{money(total)}</strong></div>
+    <div className="cancelNote">The {money(advance)} booking token is non-refundable and is a separate charge — it is NOT adjusted against the amount due above.</div>
   </div>;
 }
 
@@ -291,7 +291,21 @@ if (!selectedItems.length) {
     setSelectedOrder(o); setItems(await getOrderItems(o.id)); setHistory(await getOrderHistory(o.id));
     try{ setPins(await getOrderPins(o.id)); }catch(e){ setPins(null); }
   }
-  async function refreshOrder(){if(selectedOrder){const fresh=(await getCustomerOrders(user.id)).find(x=>x.id===selectedOrder.id);if(fresh){setSelectedOrder(fresh);setItems(await getOrderItems(fresh.id));setHistory(await getOrderHistory(fresh.id));try{setPins(await getOrderPins(fresh.id));}catch(e){}}else await load();}}
+  async function refreshOrder(){
+    if(!selectedOrder) return;
+    const fresh=(await getCustomerOrders(user.id)).find(x=>x.id===selectedOrder.id);
+    if(!fresh){ await load(); return; }
+    const justCompleted = fresh.status==="completed" && selectedOrder.status!=="completed";
+    if(justCompleted){
+      // Order just finished (final payment succeeded) -- close the detail
+      // popup automatically instead of leaving payment/PIN details open.
+      // The customer can still reopen it any time from the order list.
+      setSelectedOrder(null);
+      await load();
+      return;
+    }
+    setSelectedOrder(fresh);setItems(await getOrderItems(fresh.id));setHistory(await getOrderHistory(fresh.id));try{setPins(await getOrderPins(fresh.id));}catch(e){}
+  }
   async function confirmBill(){
     setBusy(true);try{await confirmFinalBill(selectedOrder.id,user.id);await refreshOrder();setMsg("Final bill confirmed.");}catch(e){setMsg(errorText(e))}finally{setBusy(false)}
   }
@@ -300,7 +314,7 @@ if (!selectedItems.length) {
       <section className="hero">
         <div className="heroCopy">
           <h1>Book a certified electrician for today.</h1>
-          <p>Priced services, and a ₹21 token that locks your slot — fully adjusted into the final bill.</p>
+          <p>Priced services, and a ₹21 token that locks your slot — non-refundable and charged separately from your final bill.</p>
         </div>
         <div className="ticketStub">
           <div className="ticketStubTop">
@@ -338,7 +352,7 @@ if (!selectedItems.length) {
       {step===1 && <div className="wizardIntro">
         <Zap size={34}/>
         <h2>Ready to book an electrician?</h2>
-        <p>You'll pick your services, choose a saved location, and lock your slot with a small ₹21 token — fully adjusted into your final bill.</p>
+        <p>You'll pick your services, choose a saved location, and lock your slot with a ₹21 token — non-refundable and charged separately from your final bill.</p>
         <button className="primary" onClick={()=>setStep(2)}>Book Electrician</button>
       </div>}
 
@@ -381,7 +395,7 @@ if (!selectedItems.length) {
         <div className="termsBox">
           <h3>Terms &amp; conditions</h3>
           <ul>
-            <li>The ₹21 booking token confirms your slot and is fully adjusted into your final bill — it is non-refundable once paid.</li>
+            <li>The ₹21 booking token confirms your slot. It is non-refundable once paid and is a separate charge — it is NOT adjusted into your final bill.</li>
             <li>Any additional services the electrician adds on-site will be reflected in the final bill, which you'll be asked to confirm before final payment.</li>
             <li>A Work Start PIN and Work Completed PIN are issued to you after booking — share these with your electrician only in person, at the relevant stage of the visit.</li>
           </ul>
