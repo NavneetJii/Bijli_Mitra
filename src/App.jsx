@@ -322,11 +322,11 @@ if (!selectedItems.length) {
         </div>
         <div className="ticketStub">
           <div className="ticketStubTop">
-            <span>Booking token</span>
+            <span>Visiting Amount</span>
             <ShieldCheck size={18}/>
           </div>
           <div className="ticketStubAmount">{money(ADVANCE)}</div>
-          <div className="ticketStubFoot">Verified by Cashfree · adjusted into your bill</div>
+          <div className="ticketStubFoot">Verified by Cashfree · non-refundable</div>
         </div>
       </section>
       <nav className="menuGrid">
