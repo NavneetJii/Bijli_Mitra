@@ -15,7 +15,6 @@ import {
   getDailyPayments, getAdminElectricians, getAdminOrders, getAdminOrdersByDate
 } from "./supabase";
 
-const INSPECTION_FEE = 121;
 const ADVANCE = 21;
 
 const fallbackServices = [
@@ -134,13 +133,12 @@ function ServiceCard({s, qty, onChange}) {
   </div>;
 }
 
-function BillBox({items, technicianItems=[], inspection=INSPECTION_FEE, advance=ADVANCE, final=false}) {
+function BillBox({items, technicianItems=[], advance=ADVANCE, final=false}) {
   const customerTotal = items.reduce((a,x)=>a + Number(x.price||x.unit_price||0)*Number(x.quantity||1),0);
   const techTotal = technicianItems.reduce((a,x)=>a + Number(x.price||x.unit_price||0)*Number(x.quantity||1),0);
-  const total = customerTotal + techTotal + Number(inspection);
+  const total = customerTotal + techTotal;
   return <div className="billBox">
     <div className="billRow"><span>Base Service Pack (incl. GST)</span><b>{money(customerTotal)}</b></div>
-    <div className="billRow"><span>Visiting / Minimum Inspection Fee</span><b>{money(inspection)}</b></div>
     {technicianItems.length>0 && <div className="billRow"><span>Technician Added Services</span><b>{money(techTotal)}</b></div>}
     <div className="billRow strong"><span>{final ? "Final Total Work Amount" : "Estimated Total Work Amount"}</span><b>{money(total)}</b></div>
     <div className="billRow token"><span>Advance Booking Token</span><b>- {money(advance)}</b></div>
@@ -302,7 +300,7 @@ if (!selectedItems.length) {
       <section className="hero">
         <div className="heroCopy">
           <h1>Book a certified electrician for today.</h1>
-          <p>Flat ₹121 visit fee, priced services, and a ₹21 token that locks your slot — fully adjusted into the final bill.</p>
+          <p>Priced services, and a ₹21 token that locks your slot — fully adjusted into the final bill.</p>
         </div>
         <div className="ticketStub">
           <div className="ticketStubTop">
@@ -384,7 +382,6 @@ if (!selectedItems.length) {
           <h3>Terms &amp; conditions</h3>
           <ul>
             <li>The ₹21 booking token confirms your slot and is fully adjusted into your final bill — it is non-refundable once paid.</li>
-            <li>The ₹121 visiting/inspection fee is included in every booking, regardless of the work done.</li>
             <li>Any additional services the electrician adds on-site will be reflected in the final bill, which you'll be asked to confirm before final payment.</li>
             <li>A Work Start PIN and Work Completed PIN are issued to you after booking — share these with your electrician only in person, at the relevant stage of the visit.</li>
           </ul>
@@ -413,7 +410,7 @@ if (!selectedItems.length) {
         <div className="addressBox"><MapPin size={18}/><span>{selectedOrder.address_line}, {selectedOrder.landmark}, {selectedOrder.city}, {selectedOrder.state} — {selectedOrder.pincode}{selectedOrder.location_url && <> · <a href={selectedOrder.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
         <PinBox pins={pins}/>
         <h3>Services</h3>{items.map(i=><div className="miniRow" key={i.id}><span>{i.service_name} × {i.quantity}</span><b>{money(i.total_price ?? i.unit_price*i.quantity)}</b></div>)}
-        <BillBox items={items.filter(i=>i.source==="customer").map(i=>({price:i.unit_price,quantity:i.quantity}))} technicianItems={items.filter(i=>i.source==="technician").map(i=>({price:i.unit_price,quantity:i.quantity}))} inspection={selectedOrder.inspection_fee} advance={selectedOrder.advance_amount} final={Boolean(selectedOrder.final_total)}/>
+        <BillBox items={items.filter(i=>i.source==="customer").map(i=>({price:i.unit_price,quantity:i.quantity}))} technicianItems={items.filter(i=>i.source==="technician").map(i=>({price:i.unit_price,quantity:i.quantity}))} advance={selectedOrder.advance_amount} final={Boolean(selectedOrder.final_total)}/>
         {selectedOrder.status==="final_bill_pending" && <button className="primary full" disabled={busy} onClick={confirmBill}>{busy?"Confirming…":"Confirm final bill"}</button>}
         {selectedOrder.status==="final_payment_pending" && <button className="primary full" disabled={busy} onClick={async()=>{
           setBusy(true); setMsg("");
