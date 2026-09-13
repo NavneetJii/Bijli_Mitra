@@ -1,4 +1,3 @@
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
@@ -9,7 +8,7 @@ const cors = {
 };
 
 const CASHFREE_VERSION = "2025-01-01";
-const ADVANCE_AMOUNT = 21;
+const ADVANCE_AMOUNT = 51;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: cors });
@@ -45,8 +44,9 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json();
     const paymentType = body?.payment_type;
+    const renderAs = body?.render_as;
 
-    if (!["booking_advance", "final_payment"].includes(paymentType)) {
+    if (["booking_advance", "final_payment"].includes(paymentType) === false) {
       return json({ error: "Invalid payment_type." }, 400);
     }
 
@@ -55,12 +55,9 @@ Deno.serve(async (req: Request) => {
     let draftLocationId: string | null = null;
     let draftItems: unknown[] | null = null;
     let orderNote: string;
+    let paymentCustomerId: string = user.id;
 
     if (paymentType === "booking_advance") {
-      // No order exists yet -- the order is only created once this ₹21
-      // payment actually succeeds (see cashfree-webhook +
-      // create_order_from_paid_booking). The frontend sends the cart
-      // instead of an order_id.
       const serviceLocationId = body?.service_location_id;
       const items = body?.items;
 
@@ -108,54 +105,16 @@ Deno.serve(async (req: Request) => {
       amount = ADVANCE_AMOUNT;
       draftLocationId = serviceLocationId;
       draftItems = normalizedItems;
-      orderNote = `BijliMitra ₹21 booking token for ${user.id}`;
+      orderNote = `BijliMitra ₹51 booking token for ${user.id}`;
 
-      // Reuse an existing pending draft payment (no order yet) for this
-      // customer instead of creating a fresh Cashfree order every time the
-      // checkout modal is reopened.
-      const { data: existingDraft } = await admin
-        .from("payments")
-        .select("*")
-        .eq("customer_id", user.id)
-        .eq("payment_type", "booking_advance")
-        .eq("status", "pending")
-        .is("order_id", null)
-        .not("cashfree_order_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (existingDraft?.cashfree_order_id) {
-        const base = environment === "production" ? "https://api.cashfree.com" : "https://sandbox.cashfree.com";
-        const getResp = await fetch(`${base}/pg/orders/${encodeURIComponent(existingDraft.cashfree_order_id)}`, {
-          headers: {
-            "accept": "application/json",
-            "x-api-version": CASHFREE_VERSION,
-            "x-client-id": clientId,
-            "x-client-secret": clientSecret,
-          },
-        });
-        if (getResp.ok) {
-          const cf = await getResp.json();
-          if (cf.payment_session_id) {
-            // Refresh the draft cart in case the customer changed it.
-            await admin.from("payments").update({
-              draft_service_location_id: draftLocationId,
-              draft_items: draftItems,
-              updated_at: new Date().toISOString(),
-            }).eq("id", existingDraft.id);
-
-            return json({
-              payment_session_id: cf.payment_session_id,
-              cashfree_order_id: existingDraft.cashfree_order_id,
-              payment_id: existingDraft.id,
-            });
-          }
-        }
-      }
+      // NOTE: deliberately NOT reusing any existing pending draft here.
+      // Reuse logic (matching on a recent pending payment + an Cashfree
+      // "is this session ACTIVE" check) repeatedly caused stale sessions to
+      // get served again after the price changed, or after long sandbox
+      // testing gaps -- charging an old amount without any visible error.
+      // A fresh Cashfree order is created on every single attempt instead.
+      // The only cost is a few extra sandbox test orders, which is trivial.
     } else {
-      // final_payment: the order already exists by this point in the flow
-      // (customer confirmed the bill, electrician verified the completed PIN).
       orderId = body?.order_id;
       if (!orderId || typeof orderId !== "string") {
         return json({ error: "order_id is required." }, 400);
@@ -168,48 +127,23 @@ Deno.serve(async (req: Request) => {
         .single();
 
       if (orderError || !order) return json({ error: "Order not found." }, 404);
-      if (order.customer_id !== user.id) return json({ error: "You do not own this order." }, 403);
+
+      const isCustomer = order.customer_id === user.id;
+      const isAssignedElectrician = order.electrician_id === user.id;
+      if (!isCustomer && !isAssignedElectrician) {
+        return json({ error: "You do not have access to this order." }, 403);
+      }
+
       if (order.status !== "final_payment_pending") {
         return json({ error: "Order is not awaiting final payment." }, 409);
       }
 
+      paymentCustomerId = order.customer_id;
       amount = Number(order.amount_due);
       if (!(amount > 0)) return json({ error: "No final amount is due." }, 400);
       orderNote = `BijliMitra final payment for ${orderId}`;
 
-      // Reuse a pending Cashfree order when possible.
-      const { data: existing } = await admin
-        .from("payments")
-        .select("*")
-        .eq("order_id", orderId)
-        .eq("payment_type", "final_payment")
-        .eq("status", "pending")
-        .not("cashfree_order_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (existing?.cashfree_order_id) {
-        const base = environment === "production" ? "https://api.cashfree.com" : "https://sandbox.cashfree.com";
-        const getResp = await fetch(`${base}/pg/orders/${encodeURIComponent(existing.cashfree_order_id)}`, {
-          headers: {
-            "accept": "application/json",
-            "x-api-version": CASHFREE_VERSION,
-            "x-client-id": clientId,
-            "x-client-secret": clientSecret,
-          },
-        });
-        if (getResp.ok) {
-          const cf = await getResp.json();
-          if (cf.payment_session_id) return json({
-            payment_session_id: cf.payment_session_id,
-            cashfree_order_id: existing.cashfree_order_id,
-            payment_id: existing.id,
-          });
-        }
-      }
-
-      // Mark the order as having a payment attempt in flight.
+      // Same reasoning as above -- no reuse of a prior pending session.
       await admin.from("orders").update({
         final_payment_status: "pending",
         updated_at: new Date().toISOString(),
@@ -220,24 +154,23 @@ Deno.serve(async (req: Request) => {
     const base = environment === "production" ? "https://api.cashfree.com" : "https://sandbox.cashfree.com";
     const customerPhone = String(user.phone || "9999999999").replace(/\D/g, "").slice(-10) || "9999999999";
 
+    const webhookUrl = `${supabaseUrl}/functions/v1/cashfree-webhook`;
+
     const cfBody: Record<string, unknown> = {
       order_id: cashfreeOrderId,
       order_currency: "INR",
       order_amount: amount,
       customer_details: {
-        customer_id: user.id,
+        customer_id: paymentCustomerId,
         customer_email: user.email || "customer@bijlimitra.local",
         customer_phone: customerPhone,
       },
       order_note: orderNote,
+      order_meta: {
+        return_url: appUrl ? `${appUrl}/?cashfree_order_id={order_id}` : undefined,
+        notify_url: webhookUrl,
+      },
     };
-
-    if (appUrl) {
-      cfBody.order_meta = {
-        return_url: `${appUrl}/?cashfree_order_id={order_id}`,
-        notify_url: `${appUrl}/functions/v1/cashfree-webhook`,
-      };
-    }
 
     const cfResp = await fetch(`${base}/pg/orders`, {
       method: "POST",
@@ -263,7 +196,7 @@ Deno.serve(async (req: Request) => {
 
     const paymentRow: Record<string, unknown> = {
       order_id: orderId,
-      customer_id: user.id,
+      customer_id: paymentCustomerId,
       payment_type: paymentType,
       amount,
       status: "pending",
@@ -289,6 +222,19 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Cashfree order created but local payment record failed.", cashfree_order_id: cf.order_id }, 500);
     }
 
+    if (paymentType === "final_payment" && renderAs === "qrcode") {
+      const qr = await requestUpiQr(base, cf.payment_session_id);
+      if (!qr) {
+        return json({ error: "Cashfree did not return a UPI QR payload for this order." }, 502);
+      }
+      return json({
+        qr_payload: qr,
+        cashfree_order_id: cf.order_id,
+        payment_id: payment.id,
+        amount,
+      });
+    }
+
     return json({
       payment_session_id: cf.payment_session_id,
       cashfree_order_id: cf.order_id,
@@ -300,3 +246,42 @@ Deno.serve(async (req: Request) => {
     return json({ error: e instanceof Error ? e.message : "Unexpected error." }, 500);
   }
 });
+
+async function requestUpiQr(base: string, paymentSessionId: string): Promise<string | null> {
+  const resp = await fetch(`${base}/pg/orders/sessions`, {
+    method: "POST",
+    headers: {
+      "accept": "application/json",
+      "content-type": "application/json",
+      "x-api-version": CASHFREE_VERSION,
+    },
+    body: JSON.stringify({
+      payment_session_id: paymentSessionId,
+      payment_method: { upi: { channel: "qrcode" } },
+    }),
+  });
+
+  const text = await resp.text();
+  let data: any;
+  try { data = JSON.parse(text); } catch { data = { raw: text }; }
+
+  if (!resp.ok) {
+    console.error("Cashfree Order Pay (qrcode) failed", data);
+    return null;
+  }
+
+  const candidate =
+    data?.data?.payload?.qrcode ??
+    data?.data?.payload?.default ??
+    data?.data?.payload?.upi_qr ??
+    data?.data?.url ??
+    data?.qr_code ??
+    null;
+
+  if (!candidate || typeof candidate !== "string") {
+    console.error("Cashfree Order Pay (qrcode) response had no recognizable QR payload", data);
+    return null;
+  }
+
+  return candidate;
+}
