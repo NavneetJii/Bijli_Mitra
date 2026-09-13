@@ -283,10 +283,24 @@ async function openCashfreeCheckout(body) {
     mode: import.meta.env.VITE_CASHFREE_ENVIRONMENT === "production" ? "production" : "sandbox"
   });
 
-  return cashfree.checkout({
+  const result = await cashfree.checkout({
     paymentSessionId: data.payment_session_id,
     redirectTarget: "_modal"
   });
+
+  // IMPORTANT: the Cashfree Checkout SDK resolves this promise whenever the
+  // modal closes -- on a successful payment, a FAILED payment, or the
+  // customer simply closing/cancelling it. It only rejects for SDK-level
+  // problems (bad session, SDK not loaded, etc). If we don't inspect the
+  // resolved value ourselves, a failed or cancelled payment looks exactly
+  // like a successful one to the caller -- which is what was happening
+  // here before this fix.
+  if (result?.error) {
+    const reason = result.error.message || result.error.code || "Payment was not completed.";
+    throw new Error(reason);
+  }
+
+  return result;
 }
 
 /**

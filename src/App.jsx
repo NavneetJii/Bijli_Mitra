@@ -263,20 +263,28 @@ if (!selectedItems.length) {
       // the cart; the real order only gets created (server-side, in the
       // webhook) once the ₹21 booking payment actually succeeds.
       setMsg("Opening ₹21 booking payment…");
+      const priorOrderCount = orders.length;
       await startCashfreeBookingCheckout(locationId, selectedItems.map(x=>({service_id:x.id,quantity:x.quantity})));
 
-      setMsg("Payment received. Confirming your booking…");
+      // The Cashfree checkout call resolving successfully means the modal
+      // closed WITHOUT a payment error -- it does not yet mean the order
+      // has been created (that only happens once our webhook has heard
+      // back from Cashfree and run). So we don't claim success yet; we
+      // wait to actually see the new order appear before saying so.
+      setMsg("Payment submitted. Confirming your booking…");
       setCart({});
       setStep(1); setAgreed(false);
-      // The webhook may take a moment longer than the checkout modal to
-      // finish creating the order, so poll briefly for it to show up.
       setTab("orders");
-      for (let attempt=0; attempt<5; attempt++){
+      let confirmed = false;
+      for (let attempt=0; attempt<6; attempt++){
         await load();
-        if ((await getCustomerOrders(user.id)).length > orders.length) break;
+        if ((await getCustomerOrders(user.id)).length > priorOrderCount) { confirmed = true; break; }
         await new Promise(r=>setTimeout(r,1500));
       }
       await load();
+      setMsg(confirmed
+        ? "Booking confirmed!"
+        : "Payment was submitted, but we couldn't confirm your booking yet. If the payment succeeded this can take a little longer to appear -- pull to refresh My Orders in a moment. If it doesn't show up, the payment likely wasn't completed and you can try again.");
     }catch(e){
       setMsg(`Booking payment was not completed: ${errorText(e)}`);
     }finally{setBusy(false)}
