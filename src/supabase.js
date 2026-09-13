@@ -306,7 +306,7 @@ async function openCashfreeCheckout(body) {
 /**
  * Booking flow: no order exists yet. The cart (location + items) is sent
  * straight to Cashfree; the real order only gets created by the webhook
- * once this ₹21 payment actually succeeds.
+ * once this ₹51 payment actually succeeds.
  */
 export async function startCashfreeBookingCheckout(locationId, items) {
   return openCashfreeCheckout({
