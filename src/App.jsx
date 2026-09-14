@@ -12,7 +12,8 @@ import {
   getAssignedOrders, acceptOrder, startOrderWork, addTechnicianService,
   removeTechnicianService, generateFinalBill, verifyCompletedPin, startCashfreeBookingCheckout,
   startCashfreeFinalCheckout, createFinalPaymentQr, recordCashPayment,
-  getDailyPayments, getAdminElectricians, getAdminOrders, getAdminOrdersByDate
+  getDailyPayments, getAdminElectricians, getAdminOrders, getAdminOrdersByDate,
+  getAdminPendingOrders, routeOrderToElectrician, unrouteOrder
 } from "./supabase";
 
 const ADVANCE = 51;
@@ -468,6 +469,16 @@ function Electrician({user}) {
   }
   useEffect(()=>{load()},[]);
 
+  // Periodic safety-net refresh: realtime updates can miss the moment a
+  // pending order becomes invisible to this electrician (e.g. right after
+  // an admin unroutes it -- Postgres changes filtered by RLS don't always
+  // notify the client that a row it could see has become invisible). This
+  // catches that within a short window even if no realtime event arrives.
+  useEffect(()=>{
+    const interval = setInterval(()=>{ load(); }, 20000);
+    return ()=>clearInterval(interval);
+  },[]);
+
   // Live updates: the pending list, assigned orders, and the currently
   // selected order's items all refresh the instant anything changes in the
   // DB -- no manual refresh, no polling delay.
@@ -562,6 +573,9 @@ function Admin({user}) {
   const [dailyPayments,setDailyPayments]=useState([]);
   const [electricians,setElectricians]=useState([]);
   const [orders,setOrders]=useState([]);
+  const [pendingOrders,setPendingOrders]=useState([]);
+  const [routing,setRouting]=useState({});
+  const [routeBusy,setRouteBusy]=useState(null);
   const [msg,setMsg]=useState("");
   const [loading,setLoading]=useState(true);
   const [selectedDate,setSelectedDate]=useState("");
@@ -570,12 +584,27 @@ function Admin({user}) {
 
   async function load(){
     try{
-      const [dp, el, or] = await Promise.all([getDailyPayments(30), getAdminElectricians(), getAdminOrders(100)]);
-      setDailyPayments(dp); setElectricians(el); setOrders(or);
+      const [dp, el, or, po] = await Promise.all([getDailyPayments(30), getAdminElectricians(), getAdminOrders(100), getAdminPendingOrders()]);
+      setDailyPayments(dp); setElectricians(el); setOrders(or); setPendingOrders(po);
     }catch(e){ setMsg(errorText(e)); }
     finally{ setLoading(false); }
   }
   useEffect(()=>{ load(); },[]);
+
+  async function doRoute(orderId){
+    const electricianId = routing[orderId];
+    if(!electricianId) return;
+    setRouteBusy(orderId); setMsg("");
+    try{ await routeOrderToElectrician(orderId, electricianId); await load(); }
+    catch(e){ setMsg(errorText(e)); }
+    finally{ setRouteBusy(null); }
+  }
+  async function doUnroute(orderId){
+    setRouteBusy(orderId); setMsg("");
+    try{ await unrouteOrder(orderId); await load(); }
+    catch(e){ setMsg(errorText(e)); }
+    finally{ setRouteBusy(null); }
+  }
 
   // Fetching is triggered directly from the date input's onChange below --
   // deliberately not through a useEffect watching selectedDate. Tying it
@@ -638,6 +667,37 @@ function Admin({user}) {
         </div>)}
         {!electricians.length && <p className="muted">No electricians yet.</p>}
       </div>
+    </div>
+
+    <div className="panel adminSection">
+      <div className="sectionHead"><div><h2>Pending orders</h2><p>Route each order to an electrician. They'll only see orders routed to them.</p></div></div>
+      {!pendingOrders.length && <p className="muted">No pending orders right now.</p>}
+      {pendingOrders.map(o=>{
+        const routedTo = o.routed_electrician_id ? electricians.find(e=>e.id===o.routed_electrician_id) : null;
+        return <div className="pendingCard" key={o.id}>
+          <div>
+            <span className="orderId">#{o.id.slice(0,8).toUpperCase()}</span>
+            <h3>{o.customer_name || "—"}{o.customer_phone && <> · {o.customer_phone}</>}</h3>
+            <p>{o.address_line}, {o.city} — {o.pincode}</p>
+            <b>{money(o.estimated_total)} estimated</b>
+          </div>
+          <div className="routeControls">
+            {routedTo
+              ? <>
+                  <span className="routedBadge">Routed to {routedTo.profiles?.full_name || "electrician"}</span>
+                  <button className="secondary" disabled={routeBusy===o.id} onClick={()=>doUnroute(o.id)}>{routeBusy===o.id?"…":"Unroute"}</button>
+                </>
+              : <>
+                  <select value={routing[o.id]||""} onChange={e=>setRouting({...routing,[o.id]:e.target.value})}>
+                    <option value="">Select electrician…</option>
+                    {electricians.map(e=><option key={e.id} value={e.id}>{e.profiles?.full_name || "Unnamed"} — {prettyStatus(e.availability)}</option>)}
+                  </select>
+                  <button className="primary" disabled={routeBusy===o.id || !routing[o.id]} onClick={()=>doRoute(o.id)}>{routeBusy===o.id?"Routing…":"Route"}</button>
+                </>
+            }
+          </div>
+        </div>;
+      })}
     </div>
 
     <div className="panel adminSection">
@@ -723,7 +783,13 @@ return (
 
       onLogout={async () => {
         await signOut();
-        await loadUser();
+        // Full reload rather than just re-fetching the user: this
+        // guarantees a completely clean slate after logout -- no leftover
+        // component state (cart, selected order, admin routing selections,
+        // electrician's in-progress QR, etc.) and no lingering realtime
+        // subscriptions from the previous session, regardless of whether
+        // the person was a customer, electrician, or admin.
+        window.location.reload();
       }}
 
       onLogin={() => {
