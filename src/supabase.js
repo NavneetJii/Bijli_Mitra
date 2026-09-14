@@ -388,6 +388,38 @@ export async function getAdminElectricians() {
   return data ?? [];
 }
 
+/**
+ * All pending, paid orders -- what admin sees to decide routing. Unlike an
+ * electrician's own pending list (RLS-restricted to only orders routed to
+ * them), admin's blanket "Admins can view all orders" policy means this
+ * plain select already returns everything with no extra filtering needed.
+ */
+export async function getAdminPendingOrders() {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, status, customer_name, customer_phone, address_line, city, pincode, estimated_total, routed_electrician_id, created_at")
+    .eq("status", "pending")
+    .eq("advance_payment_status", "paid")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function routeOrderToElectrician(orderId, electricianId) {
+  const { data, error } = await supabase.rpc("route_order_to_electrician", {
+    p_order_id: orderId,
+    p_electrician_id: electricianId
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function unrouteOrder(orderId) {
+  const { data, error } = await supabase.rpc("unroute_order", { p_order_id: orderId });
+  if (error) throw error;
+  return data;
+}
+
 export async function getAdminOrders(limit = 100) {
   const { data, error } = await supabase
     .from("orders")
