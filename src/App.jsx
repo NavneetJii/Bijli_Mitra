@@ -32,6 +32,8 @@ const fallbackServices = [
   ["Fault Finding / Short Circuit Checking", 299, "job"]
 ].map(([name, price, unit], i) => ({ id: `demo-${i}`, name, price, unit, is_active: true }));
 
+const ORDER_STATUSES = ["pending","assigned","work_in_progress","final_bill_pending","customer_confirmed","final_payment_pending","completed","cancelled"];
+
 function money(v) { return `₹${Number(v || 0).toFixed(2)}`; }
 function prettyStatus(s) {
   return String(s || "").replaceAll("_", " ").replace(/\b\w/g, x => x.toUpperCase());
@@ -581,6 +583,7 @@ function Admin({user}) {
   const [selectedDate,setSelectedDate]=useState("");
   const [dateOrders,setDateOrders]=useState(null);
   const [dateLoading,setDateLoading]=useState(false);
+  const [statusFilter,setStatusFilter]=useState("");
 
   async function load(){
     try{
@@ -633,7 +636,7 @@ function Admin({user}) {
 
   if(loading) return <div className="page"><div className="loading"><Zap/> Loading dashboard…</div></div>;
 
-  const displayOrders = selectedDate ? (dateOrders||[]) : orders;
+  const displayOrders = (selectedDate ? (dateOrders||[]) : orders).filter(o => !statusFilter || o.status === statusFilter);
 
   return <div className="page">
     <section className="dashHeader"><div><h1>Admin dashboard</h1><p>Payments, electrician status, and recent orders across the platform.</p></div></section>
@@ -702,8 +705,12 @@ function Admin({user}) {
 
     <div className="panel adminSection">
       <div className="sectionHead">
-        <div><h2>{selectedDate ? `Orders on ${new Date(selectedDate).toLocaleDateString()}` : "Recent orders"}</h2><p>{selectedDate ? `${displayOrders.length} order(s) with current status.` : `Last ${orders.length} orders.`}</p></div>
+        <div><h2>{selectedDate ? `Orders on ${new Date(selectedDate).toLocaleDateString()}` : "Recent orders"}</h2><p>{displayOrders.length} order(s) shown{statusFilter?` · filtered to ${prettyStatus(statusFilter)}`:""}.</p></div>
         <div className="dateFilter">
+          <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
+            <option value="">All statuses</option>
+            {ORDER_STATUSES.map(s=><option key={s} value={s}>{prettyStatus(s)}</option>)}
+          </select>
           <input type="date" value={selectedDate} onChange={e=>{
             const d = e.target.value;
             setSelectedDate(d);
@@ -725,7 +732,7 @@ function Admin({user}) {
               <td>{money(o.amount_due)}</td>
               <td>{new Date(o.created_at).toLocaleDateString()}</td>
             </tr>)}
-            {!dateLoading && !displayOrders.length && <tr><td colSpan="6" className="muted">{selectedDate ? "No orders on this date." : "No orders yet."}</td></tr>}
+            {!dateLoading && !displayOrders.length && <tr><td colSpan="6" className="muted">{statusFilter ? `No ${prettyStatus(statusFilter).toLowerCase()} orders${selectedDate?" on this date":""}.` : selectedDate ? "No orders on this date." : "No orders yet."}</td></tr>}
           </tbody>
         </table>
       </div>

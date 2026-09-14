@@ -145,6 +145,7 @@ a{ color: inherit; }
 .adminTable td{ padding: 9px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; white-space: nowrap; }
 .adminTable td small{ color: var(--muted); }
 .dateFilter{ display:flex; align-items:center; gap:8px; }
+.dateFilter select{ padding: 8px 10px; border-radius: var(--radius-s); border:1px solid var(--line); font-size: 13px; }
 .dateFilter input[type="date"]{
   font-family: var(--font-body); border:1px solid var(--line); border-radius: var(--radius-s);
   padding: 8px 10px; font-size: 13px; background:#fff; color: var(--ink);
