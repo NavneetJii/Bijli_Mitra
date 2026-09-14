@@ -497,6 +497,9 @@ a{ color: inherit; }
   padding: 14px; margin-bottom: 10px;
 }
 .pendingCard p{ font-size: 13px; margin: 2px 0; }
+.routeControls{ display:flex; align-items:center; gap: 8px; flex-shrink: 0; }
+.routeControls select{ padding: 8px 10px; border-radius: var(--radius-s); border:1px solid var(--line); font-size: 13px; }
+.routedBadge{ background: rgba(0,150,90,0.1); color: #0a7a4f; padding: 6px 10px; border-radius: var(--radius-s); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .assignedCard{
   display:flex; justify-content:space-between; align-items:center;
   width:100%; text-align:left; background:#fff; border:1px solid var(--line);
