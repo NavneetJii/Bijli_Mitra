@@ -52,6 +52,7 @@ export async function getServices() {
     .from("services")
     .select("*")
     .eq("is_active", true)
+    .order("category")
     .order("name");
   if (error) throw error;
   return data ?? [];

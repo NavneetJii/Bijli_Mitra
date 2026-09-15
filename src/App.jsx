@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Zap, MapPin, ShoppingCart, User, LogOut, ClipboardList,
   Plus, Minus, CheckCircle2, Clock3, Wrench, CreditCard,
-  ShieldCheck, ChevronRight, ChevronLeft, X, RefreshCw, Wallet, Eye, EyeOff
+  ShieldCheck, ChevronRight, ChevronLeft, ChevronDown, X, RefreshCw, Wallet, Eye, EyeOff
 } from "lucide-react";
 import {
   supabase, supabaseConfigured, currentUser, signIn, signUp, signOut,
@@ -222,6 +222,17 @@ function Customer({user, profile, onRequireAuth}) {
 const [busy,setBusy]=useState(false);
 const [msg,setMsg]=useState("");
 const [bookingError,setBookingError]=useState("");
+const [openCategories,setOpenCategories]=useState({});
+
+const servicesByCategory = useMemo(()=>{
+  const groups = {};
+  services.forEach(s=>{
+    const cat = s.category || "Other Services";
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(s);
+  });
+  return groups;
+}, [services]);
 
  async function load() {
   try {
@@ -396,7 +407,22 @@ if (!selectedItems.length) {
       {step===2 && <div className="contentGrid">
         <main>
           <div className="sectionHead"><div><h2>Select services</h2><p>Choose multiple services and quantities.</p></div></div>
-          <div className="serviceGrid">{services.map(s=><ServiceCard key={s.id} s={s} qty={cart[s.id]||0} onChange={q=>setCart({...cart,[s.id]:q})}/>)}</div>
+          <div className="serviceCategories">
+            {Object.entries(servicesByCategory).map(([category, catServices])=>{
+              const isOpen = openCategories[category] === true;
+              const selectedCount = catServices.filter(s=>cart[s.id]>0).length;
+              return <div className="serviceCategoryGroup" key={category}>
+                <button type="button" className="serviceCategoryHeader" onClick={()=>setOpenCategories({...openCategories,[category]:!isOpen})}>
+                  <span>{category}</span>
+                  <span className="serviceCategoryHeaderRight">
+                    {selectedCount>0 && <span className="categoryBadge">{selectedCount} selected</span>}
+                    <ChevronDown size={16} className={isOpen?"chevronOpen":""}/>
+                  </span>
+                </button>
+                {isOpen && <div className="serviceGrid">{catServices.map(s=><ServiceCard key={s.id} s={s} qty={cart[s.id]||0} onChange={q=>setCart({...cart,[s.id]:q})}/>)}</div>}
+              </div>;
+            })}
+          </div>
         </main>
         <aside className="sticky">
           <BillBox items={selectedItems} paid={false}/>
