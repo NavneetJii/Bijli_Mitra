@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Zap, MapPin, ShoppingCart, User, LogOut, ClipboardList,
   Plus, Minus, CheckCircle2, Clock3, Wrench, CreditCard,
-  ShieldCheck, ChevronRight, ChevronLeft, X, RefreshCw, Wallet
+  ShieldCheck, ChevronRight, ChevronLeft, X, RefreshCw, Wallet, Eye, EyeOff
 } from "lucide-react";
 import {
   supabase, supabaseConfigured, currentUser, signIn, signUp, signOut,
@@ -72,10 +72,23 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
   useEffect(() => {
   setMode(initialMode);
   }, [initialMode]);
-  const [form, setForm] = useState({email:"",password:"",fullName:"",phone:"",role:"customer"});
+  const [form, setForm] = useState({email:"",password:"",confirmPassword:"",fullName:"",phone:"",role:"customer"});
   const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
+  const [showPassword,setShowPassword]=useState(false);
+  const [showConfirmPassword,setShowConfirmPassword]=useState(false);
   async function submit(e) {
     e.preventDefault(); setBusy(true); setErr("");
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(form.email.trim())) {
+      setErr("Please enter a valid email address (e.g. name@example.com).");
+      setBusy(false);
+      return;
+    }
+    if (mode === "signup" && form.password !== form.confirmPassword) {
+      setErr("Passwords do not match.");
+      setBusy(false);
+      return;
+    }
     try {
       const r = mode === "login"
         ? await signIn(form.email, form.password)
@@ -103,7 +116,22 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
           <label>Phone<input required value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></label>
         </>}
         <label>Email<input type="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label>
-        <label>Password<input type="password" minLength="6" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/></label>
+        <label>Password
+          <div className="passwordField">
+            <input type={showPassword?"text":"password"} minLength="6" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/>
+            <button type="button" className="passwordToggle" onClick={()=>setShowPassword(!showPassword)} tabIndex={-1} aria-label={showPassword?"Hide password":"Show password"}>
+              {showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}
+            </button>
+          </div>
+        </label>
+        {mode==="signup" && <label>Confirm password
+          <div className="passwordField">
+            <input type={showConfirmPassword?"text":"password"} minLength="6" required value={form.confirmPassword} onChange={e=>setForm({...form,confirmPassword:e.target.value})}/>
+            <button type="button" className="passwordToggle" onClick={()=>setShowConfirmPassword(!showConfirmPassword)} tabIndex={-1} aria-label={showConfirmPassword?"Hide password":"Show password"}>
+              {showConfirmPassword ? <EyeOff size={17}/> : <Eye size={17}/>}
+            </button>
+          </div>
+        </label>}
         {err && <div className="errorBox">{err}</div>}
         <button className="primary full" disabled={busy}>{busy ? "Please wait…" : mode==="login" ? "Sign in" : "Create account"}</button>
       </form>

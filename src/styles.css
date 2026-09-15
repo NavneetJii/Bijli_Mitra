@@ -229,6 +229,14 @@ a{ color: inherit; }
   color: var(--ink);
 }
 .authCard input:focus, select:focus, .modal input:focus{ border-color: var(--copper); }
+.passwordField{ position: relative; display:flex; }
+.passwordField input{ width:100%; padding-right: 40px; }
+.passwordToggle{
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; padding: 4px; cursor: pointer;
+  color: var(--ink-soft); display:flex; align-items:center; justify-content:center;
+}
+.passwordToggle:hover{ color: var(--ink); }
 .roleToggle{ display:flex; gap:8px; margin-top:4px; }
 .roleToggle button{
   flex:1; padding: 9px 0; border-radius: var(--radius-s);
