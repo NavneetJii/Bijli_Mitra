@@ -164,7 +164,7 @@ function ServiceCard({s, qty, onChange}) {
   </div>;
 }
 
-function BillBox({items, technicianItems=[], advance=ADVANCE, final=false}) {
+function BillBox({items, technicianItems=[], advance=ADVANCE, final=false, paid=true}) {
   const GST_RATE = 0.05;
   const customerTotal = items.reduce((a,x)=>a + Number(x.price||x.unit_price||0)*Number(x.quantity||1),0);
   const techTotal = technicianItems.reduce((a,x)=>a + Number(x.price||x.unit_price||0)*Number(x.quantity||1),0);
@@ -176,9 +176,11 @@ function BillBox({items, technicianItems=[], advance=ADVANCE, final=false}) {
     {technicianItems.length>0 && <div className="billRow"><span>Technician Added Services</span><b>{money(techTotal)}</b></div>}
     <div className="billRow"><span>GST (5%)</span><b>{money(gst)}</b></div>
     <div className="billRow strong"><span>{final ? "Final Total Work Amount" : "Estimated Total Work Amount"}</span><b>{money(total)}</b></div>
-    <div className="billRow token"><span>Booking Token Paid (incl. GST)</span><b>{money(advance)}</b></div>
+    <div className="billRow token"><span>{paid ? "Visiting Charge Paid (incl. GST)" : "Visiting Charge (to be paid next, incl. GST)"}</span><b>{money(advance)}</b></div>
     <div className="billDue"><span>Amount Due</span><strong>{money(total)}</strong></div>
-    <div className="cancelNote">The {money(advance)} booking token is non-refundable and is a separate charge — it is NOT adjusted against the amount due above.</div>
+    <div className="cancelNote">{paid
+      ? `The ${money(advance)} visiting charge is non-refundable and is a separate charge — it is NOT adjusted against the amount due above.`
+      : `You'll pay a ${money(advance)} visiting charge separately on the next step to confirm your slot. It's non-refundable and will NOT be adjusted against the amount due above.`}</div>
   </div>;
 }
 
@@ -294,8 +296,8 @@ if (!selectedItems.length) {
     try{
       // No order is created here. Cashfree checkout opens directly against
       // the cart; the real order only gets created (server-side, in the
-      // webhook) once the ₹51 booking payment actually succeeds.
-      setMsg("Opening ₹51 booking payment…");
+      // webhook) once the ₹51 visiting charge actually succeeds.
+      setMsg("Opening ₹51 visiting charge payment…");
       const priorOrderCount = orders.length;
       await startCashfreeBookingCheckout(locationId, selectedItems.map(x=>({service_id:x.id,quantity:x.quantity})));
 
@@ -349,11 +351,11 @@ if (!selectedItems.length) {
       <section className="hero">
         <div className="heroCopy">
           <h1>Book a certified electrician for today.</h1>
-          <p>Priced services, and a ₹51 token (inclusive of GST) that locks your slot — non-refundable and charged separately from your final bill.</p>
+          <p>Priced services, and a ₹51 visiting charge (inclusive of GST) that locks your slot — non-refundable and charged separately from your final bill.</p>
         </div>
         <div className="ticketStub">
           <div className="ticketStubTop">
-            <span>Visiting Amount</span>
+            <span>Visiting Charge</span>
             <ShieldCheck size={18}/>
           </div>
           <div className="ticketStubAmount">{money(ADVANCE)}</div>
@@ -387,7 +389,7 @@ if (!selectedItems.length) {
       {step===1 && <div className="wizardIntro">
         <Zap size={34}/>
         <h2>Ready to book an electrician?</h2>
-        <p>You'll pick your services, choose a saved location, and lock your slot with a ₹51 token (inclusive of GST) — non-refundable and charged separately from your final bill.</p>
+        <p>You'll pick your services, choose a saved location, and lock your slot with a ₹51 visiting charge (inclusive of GST) — non-refundable and charged separately from your final bill.</p>
         <button className="primary" onClick={()=>setStep(2)}>Book Electrician</button>
       </div>}
 
@@ -397,7 +399,7 @@ if (!selectedItems.length) {
           <div className="serviceGrid">{services.map(s=><ServiceCard key={s.id} s={s} qty={cart[s.id]||0} onChange={q=>setCart({...cart,[s.id]:q})}/>)}</div>
         </main>
         <aside className="sticky">
-          <BillBox items={selectedItems}/>
+          <BillBox items={selectedItems} paid={false}/>
           <div className="wizardNav">
             <button className="secondary" onClick={()=>setStep(1)}><ChevronLeft size={16}/> Back</button>
             <button className="primary" disabled={!selectedItems.length} onClick={()=>setStep(3)}>Confirm items</button>
@@ -425,12 +427,12 @@ if (!selectedItems.length) {
       </div>}
 
       {step===4 && <div className="panel">
-        <div className="sectionHead"><div><h2>Review &amp; confirm</h2><p>Check everything before paying your booking token.</p></div></div>
-        <BillBox items={selectedItems}/>
+        <div className="sectionHead"><div><h2>Review &amp; confirm</h2><p>Check everything before paying your visiting charge.</p></div></div>
+        <BillBox items={selectedItems} paid={false}/>
         <div className="termsBox">
           <h3>Terms &amp; conditions</h3>
           <ul>
-            <li>The ₹51 booking token (inclusive of GST) confirms your slot. It is non-refundable once paid and is a separate charge — it is NOT adjusted into your final bill.</li>
+            <li>The ₹51 visiting charge (inclusive of GST) confirms your slot. It is non-refundable once paid and is a separate charge — it is NOT adjusted into your final bill.</li>
             <li>A 5% GST is added on top of the service amount (base pack plus any technician-added services) in your final bill.</li>
             <li>Any additional services the electrician adds on-site will be reflected in the final bill, which you'll be asked to confirm before final payment.</li>
             <li>A Work Start PIN and Work Completed PIN are issued to you after booking — share these with your electrician only in person, at the relevant stage of the visit.</li>
@@ -439,7 +441,7 @@ if (!selectedItems.length) {
         <label className="agreeRow"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)}/> I agree to the terms &amp; conditions above.</label>
         <div className="wizardNav">
           <button className="secondary" onClick={()=>setStep(3)}><ChevronLeft size={16}/> Back</button>
-          <button className="primary" disabled={busy||!agreed} onClick={placeOrder}>{busy?"Processing…":`Continue to ${money(ADVANCE)} booking payment`}</button>
+          <button className="primary" disabled={busy||!agreed} onClick={placeOrder}>{busy?"Processing…":`Continue to ${money(ADVANCE)} visiting charge payment`}</button>
         </div>
       </div>}
     </div>}
@@ -541,7 +543,7 @@ function Electrician({user}) {
     {msg&&<div className="notice">{msg}</div>}
     <div className="electricianGrid">
       <main>
-        <div className="sectionHead"><div><h2>Pending orders</h2><p>Only confirmed ₹51 bookings are shown.</p></div><button className="iconBtn" onClick={load}><RefreshCw size={17}/></button></div>
+        <div className="sectionHead"><div><h2>Pending orders</h2><p>Only confirmed ₹51 visiting-charge bookings are shown.</p></div><button className="iconBtn" onClick={load}><RefreshCw size={17}/></button></div>
         {pending.filter(o=>!active || o.id===active.id).map(o=><div className="pendingCard" key={o.id}><div><span className="orderId">#{o.id.slice(0,8).toUpperCase()}</span><h3>Service booking</h3>{o.customer_name && <p><b>{o.customer_name}</b>{o.customer_phone && <> · {o.customer_phone}</>}</p>}<p>{o.address_line}, {o.city} — {o.pincode}</p><b>{money(o.estimated_total)} estimated</b></div><button className="primary" disabled={busy||Boolean(active)} onClick={()=>doAction(()=>acceptOrder(o.id,user.id))}>{active?"Busy":"Accept order"}</button></div>)}
         {!pending.length&&<div className="empty">No confirmed pending orders.</div>}
         <h2 className="subHeading">My assigned orders</h2>
