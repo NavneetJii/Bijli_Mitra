@@ -80,7 +80,7 @@ export async function addLocation(userId, form) {
 export async function getCustomerOrders(userId) {
   const { data, error } = await supabase
     .from("orders")
-    .select("*")
+    .select("*, electrician:profiles!orders_electrician_id_fkey(full_name)")
     .eq("customer_id", userId)
     .order("created_at", { ascending: false });
   if (error) throw error;
