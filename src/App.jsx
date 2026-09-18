@@ -36,6 +36,20 @@ const fallbackServices = [
 const ORDER_STATUSES = ["pending","assigned","work_in_progress","final_bill_pending","customer_confirmed","final_payment_pending","completed","cancelled"];
 
 function money(v) { return `₹${Number(v || 0).toFixed(2)}`; }
+// Electrician earnings formula (electrician + admin visibility only, never
+// shown to the customer): the current service subtotal (customer +
+// technician items, always excl. GST -- this already updates live as the
+// electrician adds their own services), plus the visiting charge with its
+// own 18% tax component stripped out, minus a 10% platform fee on that
+// combined GST-excluded figure. Uses the order's own advance_amount rather
+// than a hardcoded 51, so it stays correct if that amount ever changes.
+function computeElectricianShare(order) {
+  const subtotal = Number(order.customer_services_total || 0) + Number(order.technician_services_total || 0);
+  const detaxedVisitingCharge = Number(order.advance_amount || 0) / 1.18;
+  const totalEarningExclGst = subtotal + detaxedVisitingCharge;
+  const platformFee = totalEarningExclGst * 0.10;
+  return Math.round((totalEarningExclGst - platformFee) * 100) / 100;
+}
 function prettyStatus(s) {
   return String(s || "").replaceAll("_", " ").replace(/\b\w/g, x => x.toUpperCase());
 }
@@ -644,6 +658,7 @@ function Electrician({user}) {
               )}
             </span>
           </div>)}
+          <div className="earningsBox"><span>Your Share</span><b>{money(computeElectricianShare(selected))}</b></div>
 
           {selected.status==="assigned" && <div className="actionBox"><h3>Start work</h3><p>Ask the customer for the Work Start PIN.</p><input inputMode="numeric" maxLength="6" placeholder="Enter start PIN" value={pin} onChange={e=>setPin(e.target.value)}/><button className="primary full" disabled={busy} onClick={()=>doAction(()=>startOrderWork(selected.id,pin))}>Verify & start work</button></div>}
 
@@ -888,6 +903,7 @@ function Admin({user}) {
           />
           <h3>Status history</h3>
           <div className="timeline">{adminOrderHistory.map((h,i)=><div className="timelineRow" key={h.id||i}><span className="dot"></span><div><b>{prettyStatus(h.status)}</b><p>{h.note}</p><small>{new Date(h.created_at).toLocaleString()}</small></div></div>)}</div>
+          <div className="earningsBox"><span>Electrician's Share</span><b>{money(computeElectricianShare(selectedAdminOrder))}</b></div>
         </>}
       </div>
     </div>}

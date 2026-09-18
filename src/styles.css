@@ -425,6 +425,13 @@ a{ color: inherit; }
 .billRow.token span{ color: var(--copper); }
 .billRow.token b{ color: var(--copper); }
 .billDue{ display:flex; justify-content:space-between; align-items:baseline; padding-top: 12px; }
+.earningsBox{
+  display:flex; justify-content:space-between; align-items:center;
+  background: rgba(0,150,90,0.08); border: 1px solid rgba(0,150,90,0.25);
+  border-radius: var(--radius-s); padding: 12px 14px; margin: 14px 0;
+  font-weight: 600; color: #0a7a4f;
+}
+.earningsBox b{ font-size: 17px; }
 .billDue strong{ font-family: var(--font-head); font-size: 20px; color: var(--ink); }
 .cancelNote{
   margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft);
