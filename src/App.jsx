@@ -57,7 +57,7 @@ function errorText(e) { return e?.message || String(e); }
 
 function Header({ user, profile, role, onLogout, onLogin, onSignup }) {
   return <header className="topbar">
-    <div className="brand"><span className="brandIcon"><Zap size={21}/></span><span>BijliMitra</span></div>
+    <div className="brand"><span className="brandIcon"><Zap size={21}/></span><span className="brandText"><span className="brandName">BijliMitra</span><span className="brandTagline">Serving the Rural India</span></span></div>
     <div className="topActions">
       {user && <span className="userBadge"><User size={15}/> <span className="userName">{profile?.full_name || user.email}</span>{role==="electrician" && <span className="roleBadge">Electrician</span>}{role==="admin" && <span className="roleBadge admin">Admin</span>}</span>}
       {user && <button className="iconBtn" onClick={onLogout} title="Logout"><LogOut size={17}/></button>}

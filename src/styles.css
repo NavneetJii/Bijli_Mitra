@@ -113,9 +113,18 @@ a{ color: inherit; }
 .brand{
   display:flex; align-items:center; gap:9px;
   font-family: var(--font-head);
-  font-weight: 600;
-  font-size: 18px;
   letter-spacing: -0.01em;
+}
+.brandText{ display:flex; flex-direction:column; line-height:1.15; }
+.brandName{ font-weight: 600; font-size: 18px; color:#fff; }
+.brandTagline{
+  font-family: var(--font-body);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: var(--live);
+  margin-top: 2px;
 }
 .brandIcon{
   display:flex; align-items:center; justify-content:center;
