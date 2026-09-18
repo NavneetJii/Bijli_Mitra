@@ -391,6 +391,7 @@ a{ color: inherit; }
 .contentGrid{ display:grid; grid-template-columns: 1fr 300px; gap: 28px; align-items:start; }
 .sectionHead{ display:flex; align-items:flex-start; justify-content:space-between; margin-bottom: 14px; gap: 10px; }
 .subHeading{ margin-top: 26px; }
+.tableHint{ font-size: 12px; margin-top: 8px; }
 
 .serviceGrid{ display:grid; grid-template-columns: repeat(auto-fill,minmax(230px,1fr)); gap: 12px; }
 .serviceCategories{ display:flex; flex-direction:column; gap: 18px; }

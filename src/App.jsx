@@ -737,6 +737,7 @@ function Electrician({user}) {
   const [services,setServices]=useState(fallbackServices),[selected,setSelected]=useState(null),[items,setItems]=useState([]);
   const [pin,setPin]=useState(""),[serviceId,setServiceId]=useState(""),[qty,setQty]=useState(1),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");
   const [qr,setQr]=useState(null);
+  const [completedDateFilter,setCompletedDateFilter]=useState("");
 
   async function requestFinalQr(orderId){
     setBusy(true);setMsg("");
@@ -787,6 +788,12 @@ function Electrician({user}) {
   async function selectOrder(o){setSelected(o);setItems(await getOrderItems(o.id));setQr(null);}
   async function doAction(fn){setBusy(true);setMsg("");try{await fn();await load();if(selected){const fresh=(await getAssignedOrders(user.id)).find(x=>x.id===selected.id);if(fresh){setSelected(fresh);setItems(await getOrderItems(fresh.id));}}}catch(e){setMsg(errorText(e))}finally{setBusy(false)}}
   const active = assigned.find(o=>["assigned","work_in_progress","final_bill_pending","customer_confirmed","final_payment_pending"].includes(o.status));
+  const inProgressOrders = assigned.filter(o=>o.status!=="completed");
+  const completedOrders = assigned.filter(o=>o.status==="completed");
+  const filteredCompleted = completedDateFilter
+    ? completedOrders.filter(o=>o.created_at && o.created_at.slice(0,10)===completedDateFilter)
+    : completedOrders;
+  const displayedCompleted = completedDateFilter ? filteredCompleted : filteredCompleted.slice(0,5);
   return <div className="page">
     <section className="dashHeader"><div><h1>Orders &amp; work</h1><p>Accept one job at a time. You become available again only after final payment.</p></div><div className={`availability ${profile?.availability||"unknown"}`}><span></span>{prettyStatus(profile?.availability||"Unknown")}</div></section>
     {msg&&<div className="notice">{msg}</div>}
@@ -795,8 +802,32 @@ function Electrician({user}) {
         <div className="sectionHead"><div><h2>Pending orders</h2><p>Only confirmed ₹51 visiting-charge bookings are shown.</p></div><button className="iconBtn" onClick={load}><RefreshCw size={17}/></button></div>
         {pending.filter(o=>!active || o.id===active.id).map(o=><div className="pendingCard" key={o.id}><div><span className="orderId">#{o.id.slice(0,8).toUpperCase()}</span><h3>Service booking</h3>{o.customer_name && <p><b>{o.customer_name}</b>{o.customer_phone && <> · {o.customer_phone}</>}</p>}<p>{o.landmark}, {o.city}, {o.district}, {o.state} — {o.pincode}{o.location_url && <> · <a href={o.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</p><b>{money(o.estimated_total)} estimated</b></div><button className="primary" disabled={busy||Boolean(active)} onClick={()=>doAction(()=>acceptOrder(o.id,user.id))}>{active?"Busy":"Accept order"}</button></div>)}
         {!pending.length&&<div className="empty">No confirmed pending orders.</div>}
-        <h2 className="subHeading">My assigned orders</h2>
-        {assigned.map(o=><button className={`assignedCard ${selected?.id===o.id?"selected":""}`} key={o.id} onClick={()=>selectOrder(o)}><span>#{o.id.slice(0,8).toUpperCase()}</span><b>{prettyStatus(o.status)}</b><span>{money(o.final_total||o.estimated_total)}</span></button>)}
+
+        <h2 className="subHeading">Orders in progress</h2>
+        {inProgressOrders.map(o=><button className={`assignedCard ${selected?.id===o.id?"selected":""}`} key={o.id} onClick={()=>selectOrder(o)}><span>#{o.id.slice(0,8).toUpperCase()}</span><b>{prettyStatus(o.status)}</b><span>{money(o.final_total||o.estimated_total)}</span></button>)}
+        {!inProgressOrders.length && <div className="empty">No orders in progress.</div>}
+
+        <div className="sectionHead"><h2 className="subHeading">Completed orders</h2>
+          <div className="dateFilter">
+            <input type="date" value={completedDateFilter} onChange={e=>setCompletedDateFilter(e.target.value)}/>
+            {completedDateFilter && <button className="iconBtn" title="Clear date filter" onClick={()=>setCompletedDateFilter("")}><X size={16}/></button>}
+          </div>
+        </div>
+        <div className="tableWrap">
+          <table className="adminTable">
+            <thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Date</th></tr></thead>
+            <tbody>
+              {displayedCompleted.map(o=><tr key={o.id} className="clickableRow" onClick={()=>selectOrder(o)}>
+                <td>#{o.id.slice(0,8).toUpperCase()}</td>
+                <td>{prettyStatus(o.status)}</td>
+                <td>{money(o.final_total||o.estimated_total)}</td>
+                <td>{new Date(o.created_at).toLocaleDateString()}</td>
+              </tr>)}
+              {!displayedCompleted.length && <tr><td colSpan="4" className="muted">{completedDateFilter ? "No completed orders on this date." : "No completed orders yet."}</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        {!completedDateFilter && completedOrders.length>5 && <p className="muted tableHint">Showing 5 most recent — use the date filter above to see more.</p>}
       </main>
       <aside className="panel technicianPanel">
         {!selected?<div className="empty"><Wrench size={30}/><p>Select an assigned order.</p></div>:<>
