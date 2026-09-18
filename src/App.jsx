@@ -986,6 +986,8 @@ function Footer() {
     <div className="siteFooterInner">
       <div className="siteFooterBrand"><Zap size={16}/> BijliMitra</div>
       <div className="siteFooterInfo">
+        <span>An undertaking of Kashvi Enterprises</span>
+        <span>·</span>
         <span>Bihat, Ward No. 11, Mandir Marg, Barauni, Begusarai, Bihar — 851115</span>
         <span>·</span>
         <a href="tel:+917338795810">+91 73387 95810</a>
