@@ -14,7 +14,7 @@ import {
   startCashfreeFinalCheckout, createFinalPaymentQr, recordCashPayment,
   getDailyPayments, getAdminElectricians, getAdminOrders, getAdminOrdersByDate,
   getAdminPendingOrders, routeOrderToElectrician, unrouteOrder,
-  requestPasswordReset, updatePassword, getOrderById
+  requestPasswordReset, updatePassword, getOrderById, createElectrician
 } from "./supabase";
 
 const ADVANCE = 51;
@@ -87,7 +87,7 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
   useEffect(() => {
   setMode(initialMode);
   }, [initialMode]);
-  const [form, setForm] = useState({email:"",password:"",confirmPassword:"",fullName:"",phone:"",role:"customer"});
+  const [form, setForm] = useState({email:"",password:"",confirmPassword:"",fullName:"",phone:""});
   const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
   const [showPassword,setShowPassword]=useState(false);
   const [showConfirmPassword,setShowConfirmPassword]=useState(false);
@@ -116,7 +116,7 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
     try {
       const r = mode === "login"
         ? await signIn(form.email, form.password)
-        : await signUp(form.email, form.password, form.fullName, form.phone, form.role);
+        : await signUp(form.email, form.password, form.fullName, form.phone);
       if (r.error) throw r.error;
       if (mode === "signup" && !r.data?.session) {
         setErr("Account created. If email confirmation is enabled, confirm your email and then sign in.");
@@ -136,12 +136,6 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
       ) : (
         <form onSubmit={submit}>
           {mode==="signup" && <>
-            <label>I am signing up as
-              <div className="roleToggle">
-                <button type="button" className={form.role==="customer"?"active":""} onClick={()=>setForm({...form,role:"customer"})}>Customer</button>
-                <button type="button" className={form.role==="electrician"?"active":""} onClick={()=>setForm({...form,role:"electrician"})}>Electrician</button>
-              </div>
-            </label>
             <label>Full name<input required value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})}/></label>
             <label>Phone<input required value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></label>
           </>}
@@ -716,6 +710,32 @@ function Admin({user}) {
   const [adminOrderHistory,setAdminOrderHistory]=useState([]);
   const [adminOrderPins,setAdminOrderPins]=useState(null);
   const [adminOrderLoading,setAdminOrderLoading]=useState(false);
+  const [showAddElectrician,setShowAddElectrician]=useState(false);
+  const [newElectrician,setNewElectrician]=useState({email:"",password:"",fullName:"",phone:""});
+  const [addElectricianBusy,setAddElectricianBusy]=useState(false);
+  const [addElectricianErr,setAddElectricianErr]=useState("");
+
+  async function submitNewElectrician(e){
+    e.preventDefault();
+    setAddElectricianErr("");
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(newElectrician.email.trim())) {
+      setAddElectricianErr("Please enter a valid email address.");
+      return;
+    }
+    if (newElectrician.password.length < 6) {
+      setAddElectricianErr("Password must be at least 6 characters.");
+      return;
+    }
+    setAddElectricianBusy(true);
+    try{
+      await createElectrician(newElectrician.email.trim(), newElectrician.password, newElectrician.fullName.trim(), newElectrician.phone.trim());
+      setNewElectrician({email:"",password:"",fullName:"",phone:""});
+      setShowAddElectrician(false);
+      await load();
+    }catch(e){ setAddElectricianErr(errorText(e)); }
+    finally{ setAddElectricianBusy(false); }
+  }
 
   async function openAdminOrder(o){
     setSelectedAdminOrder(o);
@@ -807,7 +827,15 @@ function Admin({user}) {
       </div>
 
       <div className="panel">
-        <div className="sectionHead"><h2>Electricians</h2></div>
+        <div className="sectionHead"><h2>Electricians</h2><button className="secondary" onClick={()=>setShowAddElectrician(!showAddElectrician)}><Plus size={16}/> Add Electrician</button></div>
+        {showAddElectrician && <form className="addElectricianForm" onSubmit={submitNewElectrician}>
+          <label>Full name<input required value={newElectrician.fullName} onChange={e=>setNewElectrician({...newElectrician,fullName:e.target.value})}/></label>
+          <label>Phone<input required value={newElectrician.phone} onChange={e=>setNewElectrician({...newElectrician,phone:e.target.value})}/></label>
+          <label>Email<input type="email" required value={newElectrician.email} onChange={e=>setNewElectrician({...newElectrician,email:e.target.value})}/></label>
+          <label>Password<input type="password" minLength="6" required value={newElectrician.password} onChange={e=>setNewElectrician({...newElectrician,password:e.target.value})}/></label>
+          {addElectricianErr && <div className="errorBox">{addElectricianErr}</div>}
+          <button className="primary full" disabled={addElectricianBusy}>{addElectricianBusy?"Creating…":"Create electrician account"}</button>
+        </form>}
         {electricians.map(e=><div className="miniRow" key={e.id}>
           <span>{e.profiles?.full_name || "—"} <small>{e.profiles?.phone}</small></span>
           <span className={`availability ${e.availability}`}><span></span>{prettyStatus(e.availability)}</span>

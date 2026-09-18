@@ -392,6 +392,12 @@ export async function getDailyPayments(days = 30) {
   return data ?? [];
 }
 
+export async function createElectrician(email, password, fullName, phone) {
+  return invokeFunction("admin-create-electrician", {
+    email, password, full_name: fullName, phone
+  });
+}
+
 export async function getAdminElectricians() {
   const { data, error } = await supabase
     .from("electrician_profiles")

@@ -432,6 +432,9 @@ a{ color: inherit; }
   font-weight: 600; color: #0a7a4f;
 }
 .earningsBox b{ font-size: 17px; }
+.addElectricianForm{ display:flex; flex-direction:column; gap: 12px; margin: 12px 0 18px; padding: 14px; background: var(--paper-raised, #f7f6ef); border-radius: var(--radius-s); border: 1px solid var(--line); }
+.addElectricianForm label{ display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:500; color: var(--ink-soft); }
+.addElectricianForm input{ font-family: var(--font-body); border: 1px solid var(--line); border-radius: var(--radius-s); padding: 10px 12px; font-size: 14px; }
 .billDue strong{ font-family: var(--font-head); font-size: 20px; color: var(--ink); }
 .cancelNote{
   margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft);
