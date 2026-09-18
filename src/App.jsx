@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useContext, createContext } from "react";
 import {
   Zap, MapPin, ShoppingCart, User, LogOut, ClipboardList,
   Plus, Minus, CheckCircle2, Clock3, Wrench, CreditCard,
@@ -18,6 +18,143 @@ import {
 } from "./supabase";
 
 const ADVANCE = 51;
+
+// ---- Hindi / English toggle ------------------------------------------
+// Lightweight i18n: HI maps every translated English string to its Hindi
+// version. t(text) looks up the current string; if it's missing from the
+// dictionary it falls back to the original English text unchanged, so a
+// forgotten string never breaks the page -- it just stays in English.
+const HI = {
+  "Serving the Rural India": "ग्रामीण भारत की सेवा में",
+  "Login": "लॉगिन",
+  "Sign Up": "साइन अप",
+  "Logout": "लॉग आउट",
+  "Book a certified electrician for today.": "आज ही एक प्रमाणित इलेक्ट्रीशियन बुक करें।",
+  "Priced services, and a ₹51 visiting charge (inclusive of GST) that locks your slot — non-refundable and charged separately from your final bill.": "निर्धारित मूल्य वाली सेवाएँ, और ₹51 का विज़िटिंग चार्ज (जीएसटी सहित) जो आपकी बुकिंग को पक्का करता है — यह गैर-वापसी योग्य है और आपके अंतिम बिल से अलग लिया जाता है।",
+  "Visiting Charge": "विज़िटिंग चार्ज",
+  "Verified by Cashfree · non-refundable": "Cashfree द्वारा सत्यापित · गैर-वापसी योग्य",
+  "Book service": "सेवा बुक करें",
+  "Schedule a certified electrician": "एक प्रमाणित इलेक्ट्रीशियन शेड्यूल करें",
+  "My orders": "मेरे ऑर्डर",
+  "Track bookings and work status": "बुकिंग और कार्य की स्थिति देखें",
+  "Account": "खाता",
+  "Profile and saved locations": "प्रोफ़ाइल और सहेजे गए पते",
+  "Select services": "सेवाएँ चुनें",
+  "Choose multiple services and quantities.": "कई सेवाएँ और मात्राएँ चुनें।",
+  "Back": "वापस",
+  "Confirm items": "आइटम की पुष्टि करें",
+  "Choose service location": "सेवा स्थान चुनें",
+  "Pick where the electrician should visit.": "चुनें कि इलेक्ट्रीशियन कहाँ जाएगा।",
+  "Login or Sign up to add and select a service location.": "सेवा स्थान जोड़ने और चुनने के लिए लॉगिन या साइन अप करें।",
+  "No saved locations yet — add one below.": "अभी तक कोई सहेजा गया पता नहीं — नीचे एक जोड़ें।",
+  "Add location": "पता जोड़ें",
+  "Confirm location": "स्थान की पुष्टि करें",
+  "Review & confirm": "समीक्षा करें और पुष्टि करें",
+  "Check everything before paying your visiting charge.": "अपना विज़िटिंग चार्ज भरने से पहले सब कुछ जांच लें।",
+  "Terms & conditions": "नियम और शर्तें",
+  "I agree to the terms & conditions above.": "मैं ऊपर दिए गए नियमों और शर्तों से सहमत हूँ।",
+  "Processing…": "प्रोसेस हो रहा है…",
+  "My account": "मेरा खाता",
+  "Name": "नाम",
+  "Email": "ईमेल",
+  "Phone": "फ़ोन",
+  "Role": "भूमिका",
+  "Customer": "ग्राहक",
+  "Saved locations": "सहेजे गए पते",
+  "Add": "जोड़ें",
+  "No saved locations.": "कोई सहेजा गया पता नहीं।",
+  "No orders yet.": "अभी तक कोई ऑर्डर नहीं।",
+  "Your booking and work status.": "आपकी बुकिंग और कार्य की स्थिति।",
+  "Ready to book an electrician?": "इलेक्ट्रीशियन बुक करने के लिए तैयार हैं?",
+  "You'll pick your services, choose a saved location, and lock your slot with a ₹51 visiting charge (inclusive of GST) — non-refundable and charged separately from your final bill.": "आप अपनी सेवाएँ चुनेंगे, एक सहेजा गया पता चुनेंगे, और ₹51 के विज़िटिंग चार्ज (जीएसटी सहित) से अपनी बुकिंग पक्की करेंगे — यह गैर-वापसी योग्य है और आपके अंतिम बिल से अलग लिया जाता है।",
+  "Book Electrician": "इलेक्ट्रीशियन बुक करें",
+  "Welcome back": "वापसी पर स्वागत है",
+  "Sign in to book an electrician.": "इलेक्ट्रीशियन बुक करने के लिए साइन इन करें।",
+  "Create your BijliMitra account": "अपना BijliMitra खाता बनाएँ",
+  "An account is required before placing an order.": "ऑर्डर देने से पहले एक खाता आवश्यक है।",
+  "Reset your password": "अपना पासवर्ड रीसेट करें",
+  "Enter your email and we'll send you a reset link.": "अपना ईमेल दर्ज करें और हम आपको एक रीसेट लिंक भेजेंगे।",
+  "Full name": "पूरा नाम",
+  "Password": "पासवर्ड",
+  "Confirm password": "पासवर्ड की पुष्टि करें",
+  "Forgot password?": "पासवर्ड भूल गए?",
+  "← Back to sign in": "← साइन इन पर वापस जाएँ",
+  "New customer? Create account": "नए ग्राहक हैं? खाता बनाएँ",
+  "Already have an account? Sign in": "पहले से खाता है? साइन इन करें",
+  "Please wait…": "कृपया प्रतीक्षा करें…",
+  "Sign in": "साइन इन करें",
+  "Send reset link": "रीसेट लिंक भेजें",
+  "Create account": "खाता बनाएँ",
+  "← Back to Home": "← होम पर वापस जाएँ",
+  "Address": "पता",
+  "Landmark": "लैंडमार्क",
+  "Pincode": "पिनकोड",
+  "State": "राज्य",
+  "District": "ज़िला",
+  "City / Village": "शहर / गाँव",
+  "Select City / Village": "शहर / गाँव चुनें",
+  "Service Address": "सेवा का पता",
+  "Use This Address": "यह पता उपयोग करें",
+  "Saving…": "सहेजा जा रहा है…",
+  "Base Service Pack": "बेस सर्विस पैक",
+  "GST (5%)": "जीएसटी (5%)",
+  "Estimated Total Work Amount": "अनुमानित कुल कार्य राशि",
+  "Final Total Work Amount": "अंतिम कुल कार्य राशि",
+  "Amount Due": "देय राशि",
+  "Technician Added Services": "तकनीशियन द्वारा जोड़ी गई सेवाएँ",
+  "Visiting Charge Paid (incl. GST)": "विज़िटिंग चार्ज भुगतान किया गया (जीएसटी सहित)",
+  "Visiting Charge (to be paid next, incl. GST)": "विज़िटिंग चार्ज (अगले चरण में भुगतान होगा, जीएसटी सहित)",
+  "The {amount} visiting charge is non-refundable and is a separate charge — it is NOT adjusted against the amount due above.": "{amount} का विज़िटिंग चार्ज गैर-वापसी योग्य है और एक अलग शुल्क है — यह ऊपर दी गई देय राशि में समायोजित नहीं किया जाता है।",
+  "You'll pay a {amount} visiting charge separately on the next step to confirm your slot. It's non-refundable and will NOT be adjusted against the amount due above.": "आप अपनी बुकिंग पक्की करने के लिए अगले चरण में अलग से {amount} का विज़िटिंग चार्ज भरेंगे। यह गैर-वापसी योग्य है और ऊपर दी गई देय राशि में समायोजित नहीं किया जाएगा।",
+  "Share these PINs only when asked": "इन पिन को केवल पूछे जाने पर ही साझा करें",
+  "Work Start PIN": "कार्य शुरू पिन",
+  "Work Completed PIN": "कार्य पूर्ण पिन",
+  "Give the Start PIN to your electrician once they arrive. Give the Completed PIN only after the work is fully done.": "इलेक्ट्रीशियन के पहुँचने पर उन्हें स्टार्ट पिन दें। पूर्ण पिन केवल तभी दें जब कार्य पूरी तरह से हो जाए।",
+  "An undertaking of Kashvi Enterprises": "काश्वी एंटरप्राइजेज़ का एक उपक्रम",
+  "Terms & conditions": "नियम और शर्तें",
+  "The ₹51 visiting charge (inclusive of GST) confirms your slot. It is non-refundable once paid and is a separate charge — it is NOT adjusted into your final bill.": "₹51 का विज़िटिंग चार्ज (जीएसटी सहित) आपकी बुकिंग की पुष्टि करता है। यह भुगतान के बाद गैर-वापसी योग्य है और एक अलग शुल्क है — यह आपके अंतिम बिल में समायोजित नहीं किया जाता है।",
+  "A 5% GST is added on top of the service amount (base pack plus any technician-added services) in your final bill.": "आपके अंतिम बिल में सेवा राशि (बेस पैक और तकनीशियन द्वारा जोड़ी गई किसी भी सेवा) पर 5% जीएसटी जोड़ा जाता है।",
+  "Any additional services the electrician adds on-site will be reflected in the final bill, which you'll be asked to confirm before final payment.": "इलेक्ट्रीशियन द्वारा मौके पर जोड़ी गई कोई भी अतिरिक्त सेवा अंतिम बिल में दिखाई देगी, जिसे अंतिम भुगतान से पहले आपसे पुष्टि करने के लिए कहा जाएगा।",
+  "A Work Start PIN and Work Completed PIN are issued to you after booking — share these with your electrician only in person, at the relevant stage of the visit.": "बुकिंग के बाद आपको एक वर्क स्टार्ट पिन और वर्क कम्प्लीटेड पिन दिया जाता है — इन्हें केवल संबंधित चरण में, व्यक्तिगत रूप से अपने इलेक्ट्रीशियन के साथ साझा करें।",
+  "I agree to the terms & conditions above.": "मैं ऊपर दिए गए नियमों और शर्तों से सहमत हूँ।",
+  "Continue to": "आगे बढ़ें",
+  "visiting charge payment": "विज़िटिंग चार्ज भुगतान की ओर",
+  "Pending": "लंबित",
+  "Assigned": "सौंपा गया",
+  "Work In Progress": "कार्य जारी है",
+  "Final Bill Pending": "अंतिम बिल लंबित",
+  "Customer Confirmed": "ग्राहक द्वारा पुष्टि की गई",
+  "Final Payment Pending": "अंतिम भुगतान लंबित",
+  "Completed": "पूर्ण",
+  "Cancelled": "रद्द",
+  "Your electrician:": "आपका इलेक्ट्रीशियन:",
+  "Assigned": "सौंपा गया",
+  "Open shared location": "साझा स्थान खोलें",
+  "Services": "सेवाएँ",
+  "Confirming…": "पुष्टि हो रही है…",
+  "Confirm final bill": "अंतिम बिल की पुष्टि करें",
+  "Opening checkout…": "चेकआउट खुल रहा है…",
+  "Pay final bill": "अंतिम बिल का भुगतान करें",
+  "View shared location": "साझा स्थान देखें",
+};
+
+const LanguageContext = createContext({ lang: "en", toggleLang: () => {}, t: (s) => s });
+function useLanguage(){ return useContext(LanguageContext); }
+
+function LanguageProvider({ children }) {
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem("bijlimitra_lang") || "en"; } catch(e) { return "en"; }
+  });
+  function toggleLang(){
+    const next = lang === "en" ? "hi" : "en";
+    setLang(next);
+    try { localStorage.setItem("bijlimitra_lang", next); } catch(e) {}
+  }
+  function t(text){
+    return lang === "hi" ? (HI[text] || text) : text;
+  }
+  return <LanguageContext.Provider value={{ lang, toggleLang, t }}>{children}</LanguageContext.Provider>;
+}
 
 const fallbackServices = [
   ["Switch / Socket Replacement", 49, "piece"],
@@ -56,25 +193,30 @@ function prettyStatus(s) {
 function errorText(e) { return e?.message || String(e); }
 
 function Header({ user, profile, role, onLogout, onLogin, onSignup }) {
+  const { lang, toggleLang, t } = useLanguage();
   return <header className="topbar">
-    <div className="brand"><span className="brandIcon"><Zap size={21}/></span><span className="brandText"><span className="brandName">BijliMitra</span><span className="brandTagline">Serving the Rural India</span></span></div>
+    <div className="brand"><span className="brandIcon"><Zap size={21}/></span><span className="brandText"><span className="brandName">BijliMitra</span><span className="brandTagline">{t("Serving the Rural India")}</span></span></div>
     <div className="topActions">
+      <button className="langToggle" onClick={toggleLang} title="Switch language">
+        <span className={lang==="en"?"active":""}>EN</span>
+        <span className={lang==="hi"?"active":""}>हिं</span>
+      </button>
       {user && <span className="userBadge"><User size={15}/> <span className="userName">{profile?.full_name || user.email}</span>{role==="electrician" && <span className="roleBadge">Electrician</span>}{role==="admin" && <span className="roleBadge admin">Admin</span>}</span>}
-      {user && <button className="iconBtn" onClick={onLogout} title="Logout"><LogOut size={17}/></button>}
+      {user && <button className="iconBtn" onClick={onLogout} title={t("Logout")}><LogOut size={17}/></button>}
       {!user && (
   <>
     <button
       className="ghostBtn"
       onClick={onLogin}
     >
-      Login
+      {t("Login")}
     </button>
 
     <button
       className="primary"
       onClick={onSignup}
     >
-      Sign Up
+      {t("Sign Up")}
     </button>
   </>
 )}
@@ -83,6 +225,7 @@ function Header({ user, profile, role, onLogout, onLogin, onSignup }) {
 }
 
 function Auth({ onDone,onBackHome ,initialMode = "login" }) {
+  const { t } = useLanguage();
   const [mode, setMode] = useState(initialMode);
   useEffect(() => {
   setMode(initialMode);
@@ -126,8 +269,8 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
   return <div className="authPage">
     <div className="authCard">
       <div className="authLogo"><Zap size={25}/></div>
-      <h1>{mode==="login" ? "Welcome back" : mode==="forgot" ? "Reset your password" : "Create your BijliMitra account"}</h1>
-      <p className="muted">{mode==="login" ? "Sign in to book an electrician." : mode==="forgot" ? "Enter your email and we'll send you a reset link." : "An account is required before placing an order."}</p>
+      <h1>{mode==="login" ? t("Welcome back") : mode==="forgot" ? t("Reset your password") : t("Create your BijliMitra account")}</h1>
+      <p className="muted">{mode==="login" ? t("Sign in to book an electrician.") : mode==="forgot" ? t("Enter your email and we'll send you a reset link.") : t("An account is required before placing an order.")}</p>
 
       {mode==="forgot" && resetSent ? (
         <div className="noticeBox">
@@ -136,11 +279,11 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
       ) : (
         <form onSubmit={submit}>
           {mode==="signup" && <>
-            <label>Full name<input required value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})}/></label>
-            <label>Phone<input required value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></label>
+            <label>{t("Full name")}<input required value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})}/></label>
+            <label>{t("Phone")}<input required value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></label>
           </>}
-          <label>Email<input type="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label>
-          {mode!=="forgot" && <label>Password
+          <label>{t("Email")}<input type="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label>
+          {mode!=="forgot" && <label>{t("Password")}
             <div className="passwordField">
               <input type={showPassword?"text":"password"} minLength="6" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/>
               <button type="button" className="passwordToggle" onClick={()=>setShowPassword(!showPassword)} tabIndex={-1} aria-label={showPassword?"Hide password":"Show password"}>
@@ -148,8 +291,8 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
               </button>
             </div>
           </label>}
-          {mode==="login" && <button type="button" className="linkBtn forgotLink" onClick={()=>{setMode("forgot");setErr("");setResetSent(false)}}>Forgot password?</button>}
-          {mode==="signup" && <label>Confirm password
+          {mode==="login" && <button type="button" className="linkBtn forgotLink" onClick={()=>{setMode("forgot");setErr("");setResetSent(false)}}>{t("Forgot password?")}</button>}
+          {mode==="signup" && <label>{t("Confirm password")}
             <div className="passwordField">
               <input type={showConfirmPassword?"text":"password"} minLength="6" required value={form.confirmPassword} onChange={e=>setForm({...form,confirmPassword:e.target.value})}/>
               <button type="button" className="passwordToggle" onClick={()=>setShowConfirmPassword(!showConfirmPassword)} tabIndex={-1} aria-label={showConfirmPassword?"Hide password":"Show password"}>
@@ -158,15 +301,15 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
             </div>
           </label>}
           {err && <div className="errorBox">{err}</div>}
-          <button className="primary full" disabled={busy}>{busy ? "Please wait…" : mode==="login" ? "Sign in" : mode==="forgot" ? "Send reset link" : "Create account"}</button>
+          <button className="primary full" disabled={busy}>{busy ? t("Please wait…") : mode==="login" ? t("Sign in") : mode==="forgot" ? t("Send reset link") : t("Create account")}</button>
         </form>
       )}
 
       {mode==="forgot" ? (
-        <button className="linkBtn" onClick={()=>{setMode("login");setErr("");setResetSent(false)}}>← Back to sign in</button>
+        <button className="linkBtn" onClick={()=>{setMode("login");setErr("");setResetSent(false)}}>{t("← Back to sign in")}</button>
       ) : (
         <button className="linkBtn" onClick={()=>{setMode(mode==="login"?"signup":"login");setErr("")}}>
-          {mode==="login" ? "New customer? Create account" : "Already have an account? Sign in"}
+          {mode==="login" ? t("New customer? Create account") : t("Already have an account? Sign in")}
         </button>
       )}
 
@@ -175,7 +318,7 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
        className="linkBtn"
        onClick={onBackHome}
 >
-       ← Back to Home
+       {t("← Back to Home")}
       </button>
     </div>
   </div>;
@@ -196,6 +339,7 @@ function ServiceCard({s, qty, onChange}) {
 }
 
 function BillBox({items, technicianItems=[], advance=ADVANCE, final=false, paid=true}) {
+  const { t } = useLanguage();
   const GST_RATE = 0.05;
   const customerTotal = items.reduce((a,x)=>a + Number(x.price||x.unit_price||0)*Number(x.quantity||1),0);
   const techTotal = technicianItems.reduce((a,x)=>a + Number(x.price||x.unit_price||0)*Number(x.quantity||1),0);
@@ -203,25 +347,26 @@ function BillBox({items, technicianItems=[], advance=ADVANCE, final=false, paid=
   const gst = Math.round(subtotal * GST_RATE * 100) / 100;
   const total = subtotal + gst;
   return <div className="billBox">
-    <div className="billRow"><span>Base Service Pack</span><b>{money(customerTotal)}</b></div>
-    {technicianItems.length>0 && <div className="billRow"><span>Technician Added Services</span><b>{money(techTotal)}</b></div>}
-    <div className="billRow"><span>GST (5%)</span><b>{money(gst)}</b></div>
-    <div className="billRow strong"><span>{final ? "Final Total Work Amount" : "Estimated Total Work Amount"}</span><b>{money(total)}</b></div>
-    <div className="billRow token"><span>{paid ? "Visiting Charge Paid (incl. GST)" : "Visiting Charge (to be paid next, incl. GST)"}</span><b>{money(advance)}</b></div>
-    <div className="billDue"><span>Amount Due</span><strong>{money(total)}</strong></div>
+    <div className="billRow"><span>{t("Base Service Pack")}</span><b>{money(customerTotal)}</b></div>
+    {technicianItems.length>0 && <div className="billRow"><span>{t("Technician Added Services")}</span><b>{money(techTotal)}</b></div>}
+    <div className="billRow"><span>{t("GST (5%)")}</span><b>{money(gst)}</b></div>
+    <div className="billRow strong"><span>{final ? t("Final Total Work Amount") : t("Estimated Total Work Amount")}</span><b>{money(total)}</b></div>
+    <div className="billRow token"><span>{paid ? t("Visiting Charge Paid (incl. GST)") : t("Visiting Charge (to be paid next, incl. GST)")}</span><b>{money(advance)}</b></div>
+    <div className="billDue"><span>{t("Amount Due")}</span><strong>{money(total)}</strong></div>
     <div className="cancelNote">{paid
-      ? `The ${money(advance)} visiting charge is non-refundable and is a separate charge — it is NOT adjusted against the amount due above.`
-      : `You'll pay a ${money(advance)} visiting charge separately on the next step to confirm your slot. It's non-refundable and will NOT be adjusted against the amount due above.`}</div>
+      ? t("The {amount} visiting charge is non-refundable and is a separate charge — it is NOT adjusted against the amount due above.").replace("{amount}", money(advance))
+      : t("You'll pay a {amount} visiting charge separately on the next step to confirm your slot. It's non-refundable and will NOT be adjusted against the amount due above.").replace("{amount}", money(advance))}</div>
   </div>;
 }
 
 function PinBox({pins}) {
+  const { t } = useLanguage();
   if (!pins) return null;
   return <div className="pinBox">
-    <div className="pinBoxHead"><ShieldCheck size={16}/> Share these PINs only when asked</div>
-    <div className="pinRow"><span>Work Start PIN</span><b>{pins.start_pin}</b></div>
-    <div className="pinRow"><span>Work Completed PIN</span><b>{pins.completed_pin}</b></div>
-    <p className="pinNote">Give the Start PIN to your electrician once they arrive. Give the Completed PIN only after the work is fully done.</p>
+    <div className="pinBoxHead"><ShieldCheck size={16}/> {t("Share these PINs only when asked")}</div>
+    <div className="pinRow"><span>{t("Work Start PIN")}</span><b>{pins.start_pin}</b></div>
+    <div className="pinRow"><span>{t("Work Completed PIN")}</span><b>{pins.completed_pin}</b></div>
+    <p className="pinNote">{t("Give the Start PIN to your electrician once they arrive. Give the Completed PIN only after the work is fully done.")}</p>
   </div>;
 }
 
@@ -231,6 +376,7 @@ const VILLAGE_OPTIONS = [
 ];
 
 function LocationModal({userId,onClose,onSaved}) {
+  const { t } = useLanguage();
   const [f,setF]=useState({landmark:"",city:"",pincode:"",latitude:"",longitude:""});
   const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
   async function save(e){
@@ -259,23 +405,24 @@ function LocationModal({userId,onClose,onSaved}) {
     }catch(e){setErr(errorText(e))}finally{setBusy(false)}
   }
   return <div className="modalBackdrop"><div className="modal">
-    <div className="modalHead"><h2>Service Address</h2><button className="iconBtn" onClick={onClose}><X/></button></div>
+    <div className="modalHead"><h2>{t("Service Address")}</h2><button className="iconBtn" onClick={onClose}><X/></button></div>
     <form onSubmit={save}>
-      <label>State<div className="lockedField"><span>Bihar</span><Lock size={14}/></div></label>
-      <label>District<div className="lockedField"><span>Begusarai</span><Lock size={14}/></div></label>
-      <label>City / Village<select required value={f.city} onChange={e=>setF({...f,city:e.target.value})}>
-        <option value="">Select City / Village</option>
+      <label>{t("State")}<div className="lockedField"><span>Bihar</span><Lock size={14}/></div></label>
+      <label>{t("District")}<div className="lockedField"><span>Begusarai</span><Lock size={14}/></div></label>
+      <label>{t("City / Village")}<select required value={f.city} onChange={e=>setF({...f,city:e.target.value})}>
+        <option value="">{t("Select City / Village")}</option>
         {VILLAGE_OPTIONS.map(v=><option key={v} value={v}>{v}</option>)}
       </select></label>
-      <label>Landmark<input required placeholder="Enter Landmark (e.g. Near Temple, Bus Stand)" value={f.landmark} onChange={e=>setF({...f,landmark:e.target.value})}/></label>
-      <label>Pincode<input required pattern="[0-9]{6}" value={f.pincode} onChange={e=>setF({...f,pincode:e.target.value})}/></label>
+      <label>{t("Landmark")}<input required placeholder="Enter Landmark (e.g. Near Temple, Bus Stand)" value={f.landmark} onChange={e=>setF({...f,landmark:e.target.value})}/></label>
+      <label>{t("Pincode")}<input required pattern="[0-9]{6}" value={f.pincode} onChange={e=>setF({...f,pincode:e.target.value})}/></label>
       {err&&<div className="errorBox">{err}</div>}
-      <button className="primary full" disabled={busy}>{busy?"Saving…":"Use This Address"}</button>
+      <button className="primary full" disabled={busy}>{busy?t("Saving…"):t("Use This Address")}</button>
     </form>
   </div></div>
 }
 
 function Customer({user, profile, onRequireAuth}) {
+  const { t } = useLanguage();
   const [services,setServices]=useState(fallbackServices), [locations,setLocations]=useState([]), [orders,setOrders]=useState([]);
   const [cart,setCart]=useState({}), [locationId,setLocationId]=useState(""), [tab,setTab]=useState("home");
   const [step,setStep]=useState(1), [agreed,setAgreed]=useState(false);
@@ -424,52 +571,52 @@ if (!selectedItems.length) {
     {tab==="home" ? <>
       <section className="hero">
         <div className="heroCopy">
-          <h1>Book a certified electrician for today.</h1>
-          <p>Priced services, and a ₹51 visiting charge (inclusive of GST) that locks your slot — non-refundable and charged separately from your final bill.</p>
+          <h1>{t("Book a certified electrician for today.")}</h1>
+          <p>{t("Priced services, and a ₹51 visiting charge (inclusive of GST) that locks your slot — non-refundable and charged separately from your final bill.")}</p>
         </div>
         <div className="ticketStub">
           <div className="ticketStubTop">
-            <span>Visiting Charge</span>
+            <span>{t("Visiting Charge")}</span>
             <ShieldCheck size={18}/>
           </div>
           <div className="ticketStubAmount">{money(ADVANCE)}</div>
-          <div className="ticketStubFoot">Verified by Cashfree · non-refundable</div>
+          <div className="ticketStubFoot">{t("Verified by Cashfree · non-refundable")}</div>
         </div>
       </section>
       <nav className="menuGrid">
         <button className="menuCard" onClick={()=>setTab("book")}>
           <ShoppingCart size={20}/>
-          <div><b>Book service</b><span>Schedule a certified electrician</span></div>
+          <div><b>{t("Book service")}</b><span>{t("Schedule a certified electrician")}</span></div>
           <ChevronRight size={18}/>
         </button>
         {user && <button className="menuCard" onClick={()=>setTab("orders")}>
           <ClipboardList size={20}/>
-          <div><b>My orders</b><span>Track bookings and work status</span></div>
+          <div><b>{t("My orders")}</b><span>{t("Track bookings and work status")}</span></div>
           <ChevronRight size={18}/>
         </button>}
         {user && <button className="menuCard" onClick={()=>setTab("account")}>
           <User size={20}/>
-          <div><b>Account</b><span>Profile and saved locations</span></div>
+          <div><b>{t("Account")}</b><span>{t("Profile and saved locations")}</span></div>
           <ChevronRight size={18}/>
         </button>}
       </nav>
     </> : <div className="pageHeader">
       <button className="iconBtn" onClick={()=>setTab("home")}><ChevronLeft size={18}/></button>
-      <h2>{tab==="book"?"Book service":tab==="orders"?"My orders":"Account"}</h2>
+      <h2>{tab==="book"?t("Book service"):tab==="orders"?t("My orders"):t("Account")}</h2>
     </div>}
     {msg&&<div className="notice">{msg}</div>}
 
     {tab==="book" && <div className="wizard">
       {step===1 && <div className="wizardIntro">
         <Zap size={34}/>
-        <h2>Ready to book an electrician?</h2>
-        <p>You'll pick your services, choose a saved location, and lock your slot with a ₹51 visiting charge (inclusive of GST) — non-refundable and charged separately from your final bill.</p>
-        <button className="primary" onClick={()=>setStep(2)}>Book Electrician</button>
+        <h2>{t("Ready to book an electrician?")}</h2>
+        <p>{t("You'll pick your services, choose a saved location, and lock your slot with a ₹51 visiting charge (inclusive of GST) — non-refundable and charged separately from your final bill.")}</p>
+        <button className="primary" onClick={()=>setStep(2)}>{t("Book Electrician")}</button>
       </div>}
 
       {step===2 && <div className="contentGrid">
         <main>
-          <div className="sectionHead"><div><h2>Select services</h2><p>Choose multiple services and quantities.</p></div></div>
+          <div className="sectionHead"><div><h2>{t("Select services")}</h2><p>{t("Choose multiple services and quantities.")}</p></div></div>
           <div className="serviceCategories">
             {Object.entries(servicesByCategory).map(([category, catServices])=>{
               const isOpen = openCategories[category] === true;
@@ -490,15 +637,15 @@ if (!selectedItems.length) {
         <aside className="sticky">
           <BillBox items={selectedItems} paid={false}/>
           <div className="wizardNav">
-            <button className="secondary" onClick={()=>setStep(1)}><ChevronLeft size={16}/> Back</button>
-            <button className="primary" disabled={!selectedItems.length} onClick={()=>setStep(3)}>Confirm items</button>
+            <button className="secondary" onClick={()=>setStep(1)}><ChevronLeft size={16}/> {t("Back")}</button>
+            <button className="primary" disabled={!selectedItems.length} onClick={()=>setStep(3)}>{t("Confirm items")}</button>
           </div>
         </aside>
       </div>}
 
       {step===3 && <div className="panel">
-        <div className="sectionHead"><div><h2>Choose service location</h2><p>Pick where the electrician should visit.</p></div></div>
-        {!user && <p className="muted">Login or Sign up to add and select a service location.</p>}
+        <div className="sectionHead"><div><h2>{t("Choose service location")}</h2><p>{t("Pick where the electrician should visit.")}</p></div></div>
+        {!user && <p className="muted">{t("Login or Sign up to add and select a service location.")}</p>}
         {user && <>
           {locations.length ? <div className="locationPickList">
             {locations.map(l=><button key={l.id} className={`locationPick ${locationId===l.id?"selected":""}`} onClick={()=>setLocationId(l.id)}>
@@ -506,67 +653,67 @@ if (!selectedItems.length) {
               <div><b>{l.landmark}</b><span>{l.city}, {l.district}, {l.state} — {l.pincode}</span></div>
               {locationId===l.id && <ShieldCheck size={17}/>}
             </button>)}
-          </div> : <p className="muted">No saved locations yet — add one below.</p>}
-          <button className="secondary full" onClick={()=>setLocModal(true)}><MapPin size={16}/> Add location</button>
+          </div> : <p className="muted">{t("No saved locations yet — add one below.")}</p>}
+          <button className="secondary full" onClick={()=>setLocModal(true)}><MapPin size={16}/> {t("Add location")}</button>
         </>}
         <div className="wizardNav">
-          <button className="secondary" onClick={()=>setStep(2)}><ChevronLeft size={16}/> Back</button>
-          <button className="primary" disabled={!user||!locationId} onClick={()=>setStep(4)}>Confirm location</button>
+          <button className="secondary" onClick={()=>setStep(2)}><ChevronLeft size={16}/> {t("Back")}</button>
+          <button className="primary" disabled={!user||!locationId} onClick={()=>setStep(4)}>{t("Confirm location")}</button>
         </div>
       </div>}
 
       {step===4 && <div className="panel">
-        <div className="sectionHead"><div><h2>Review &amp; confirm</h2><p>Check everything before paying your visiting charge.</p></div></div>
+        <div className="sectionHead"><div><h2>{t("Review & confirm")}</h2><p>{t("Check everything before paying your visiting charge.")}</p></div></div>
         <BillBox items={selectedItems} paid={false}/>
         <div className="termsBox">
-          <h3>Terms &amp; conditions</h3>
+          <h3>{t("Terms & conditions")}</h3>
           <ul>
-            <li>The ₹51 visiting charge (inclusive of GST) confirms your slot. It is non-refundable once paid and is a separate charge — it is NOT adjusted into your final bill.</li>
-            <li>A 5% GST is added on top of the service amount (base pack plus any technician-added services) in your final bill.</li>
-            <li>Any additional services the electrician adds on-site will be reflected in the final bill, which you'll be asked to confirm before final payment.</li>
-            <li>A Work Start PIN and Work Completed PIN are issued to you after booking — share these with your electrician only in person, at the relevant stage of the visit.</li>
+            <li>{t("The ₹51 visiting charge (inclusive of GST) confirms your slot. It is non-refundable once paid and is a separate charge — it is NOT adjusted into your final bill.")}</li>
+            <li>{t("A 5% GST is added on top of the service amount (base pack plus any technician-added services) in your final bill.")}</li>
+            <li>{t("Any additional services the electrician adds on-site will be reflected in the final bill, which you'll be asked to confirm before final payment.")}</li>
+            <li>{t("A Work Start PIN and Work Completed PIN are issued to you after booking — share these with your electrician only in person, at the relevant stage of the visit.")}</li>
           </ul>
         </div>
-        <label className="agreeRow"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)}/> I agree to the terms &amp; conditions above.</label>
+        <label className="agreeRow"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)}/> {t("I agree to the terms & conditions above.")}</label>
         <div className="wizardNav">
-          <button className="secondary" onClick={()=>setStep(3)}><ChevronLeft size={16}/> Back</button>
-          <button className="primary" disabled={busy||!agreed} onClick={placeOrder}>{busy?"Processing…":`Continue to ${money(ADVANCE)} visiting charge payment`}</button>
+          <button className="secondary" onClick={()=>setStep(3)}><ChevronLeft size={16}/> {t("Back")}</button>
+          <button className="primary" disabled={busy||!agreed} onClick={placeOrder}>{busy?t("Processing…"):`${t("Continue to")} ${money(ADVANCE)} ${t("visiting charge payment")}`}</button>
         </div>
       </div>}
     </div>}
 
     {tab==="orders" && <div className="ordersLayout">
       <div className="orderList">
-        <div className="sectionHead"><div><h2>My orders</h2><p>Your booking and work status.</p></div><button className="iconBtn" onClick={load}><RefreshCw size={17}/></button></div>
-        {!orders.length?<div className="empty">No orders yet.</div>:orders.map(o=><button className="orderCard" key={o.id} onClick={()=>openOrder(o)}>
-          <div><span className="orderId">#{o.id.slice(0,8).toUpperCase()}</span><h3>{prettyStatus(o.status)}</h3><span className="muted">{new Date(o.created_at).toLocaleString()}</span></div>
+        <div className="sectionHead"><div><h2>{t("My orders")}</h2><p>{t("Your booking and work status.")}</p></div><button className="iconBtn" onClick={load}><RefreshCw size={17}/></button></div>
+        {!orders.length?<div className="empty">{t("No orders yet.")}</div>:orders.map(o=><button className="orderCard" key={o.id} onClick={()=>openOrder(o)}>
+          <div><span className="orderId">#{o.id.slice(0,8).toUpperCase()}</span><h3>{t(prettyStatus(o.status))}</h3><span className="muted">{new Date(o.created_at).toLocaleString()}</span></div>
           <div className="orderRight"><b>{money(o.final_total || o.estimated_total)}</b><ChevronRight/></div>
         </button>)}
       </div>
     </div>}
     {tab==="orders" && selectedOrder && <div className="modalBackdrop" onClick={()=>setSelectedOrder(null)}>
       <div className="modal orderDetail" onClick={e=>e.stopPropagation()}>
-        <div className="sectionHead"><div><span className="orderTag">#{selectedOrder.id.slice(0,8).toUpperCase()}</span><h2>{prettyStatus(selectedOrder.status)}</h2></div><button className="iconBtn" onClick={()=>setSelectedOrder(null)}><X/></button></div>
-        <div className="timeline">{history.map((h,i)=><div className="timelineRow" key={h.id||i}><span className="dot"></span><div><b>{prettyStatus(h.status)}</b><p>{h.note}</p><small>{new Date(h.created_at).toLocaleString()}</small></div></div>)}</div>
-        {selectedOrder.electrician && <div className="addressBox"><User size={18}/><span>Your electrician: <b>{selectedOrder.electrician.full_name || "Assigned"}</b></span></div>}
-        <div className="addressBox"><MapPin size={18}/><span>{selectedOrder.landmark}, {selectedOrder.city}, {selectedOrder.district}, {selectedOrder.state} — {selectedOrder.pincode}{selectedOrder.location_url && <> · <a href={selectedOrder.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
+        <div className="sectionHead"><div><span className="orderTag">#{selectedOrder.id.slice(0,8).toUpperCase()}</span><h2>{t(prettyStatus(selectedOrder.status))}</h2></div><button className="iconBtn" onClick={()=>setSelectedOrder(null)}><X/></button></div>
+        <div className="timeline">{history.map((h,i)=><div className="timelineRow" key={h.id||i}><span className="dot"></span><div><b>{t(prettyStatus(h.status))}</b><p>{h.note}</p><small>{new Date(h.created_at).toLocaleString()}</small></div></div>)}</div>
+        {selectedOrder.electrician && <div className="addressBox"><User size={18}/><span>{t("Your electrician:")} <b>{selectedOrder.electrician.full_name || t("Assigned")}</b></span></div>}
+        <div className="addressBox"><MapPin size={18}/><span>{selectedOrder.landmark}, {selectedOrder.city}, {selectedOrder.district}, {selectedOrder.state} — {selectedOrder.pincode}{selectedOrder.location_url && <> · <a href={selectedOrder.location_url} target="_blank" rel="noreferrer">{t("Open shared location")}</a></>}</span></div>
         <PinBox pins={pins}/>
-        <h3>Services</h3>{items.map(i=><div className="miniRow" key={i.id}><span>{i.service_name} × {i.quantity}</span><b>{money(i.total_price ?? i.unit_price*i.quantity)}</b></div>)}
+        <h3>{t("Services")}</h3>{items.map(i=><div className="miniRow" key={i.id}><span>{i.service_name} × {i.quantity}</span><b>{money(i.total_price ?? i.unit_price*i.quantity)}</b></div>)}
         <BillBox items={items.filter(i=>i.source==="customer").map(i=>({price:i.unit_price,quantity:i.quantity}))} technicianItems={items.filter(i=>i.source==="technician").map(i=>({price:i.unit_price,quantity:i.quantity}))} advance={selectedOrder.advance_amount} final={Boolean(selectedOrder.final_total)}/>
-        {selectedOrder.status==="final_bill_pending" && <button className="primary full" disabled={busy} onClick={confirmBill}>{busy?"Confirming…":"Confirm final bill"}</button>}
+        {selectedOrder.status==="final_bill_pending" && <button className="primary full" disabled={busy} onClick={confirmBill}>{busy?t("Confirming…"):t("Confirm final bill")}</button>}
         {selectedOrder.status==="final_payment_pending" && <button className="primary full" disabled={busy} onClick={async()=>{
           setBusy(true); setMsg("");
           try{ await startCashfreeFinalCheckout(selectedOrder.id); setMsg("Cashfree checkout opened for the final bill."); }
           catch(e){ setMsg(errorText(e)); }
           finally{ setBusy(false); }
-        }}><CreditCard size={17}/> {busy?"Opening checkout…":"Pay final bill"}</button>}
+        }}><CreditCard size={17}/> {busy?t("Opening checkout…"):t("Pay final bill")}</button>}
       </div>
     </div>}
 
 
     {tab==="account" && <div className="accountGrid">
-      <div className="panel"><h2>My account</h2><div className="profileRows"><div><span>Name</span><b>{profile?.full_name||"—"}</b></div><div><span>Email</span><b>{user.email}</b></div><div><span>Phone</span><b>{profile?.phone||"—"}</b></div><div><span>Role</span><b>Customer</b></div></div></div>
-      <div className="panel"><div className="sectionHead"><h2>Saved locations</h2><button className="secondary" onClick={()=>setLocModal(true)}><Plus size={16}/> Add</button></div>{locations.map(l=><div className="locationRow" key={l.id}><MapPin size={17}/><div><b>{l.landmark}</b><span>{l.city}, {l.district}, {l.state} — {l.pincode}{l.location_url && <> · <a href={l.location_url} target="_blank" rel="noreferrer">View shared location</a></>}</span></div></div>)}{!locations.length&&<p className="muted">No saved locations.</p>}</div>
+      <div className="panel"><h2>{t("My account")}</h2><div className="profileRows"><div><span>{t("Name")}</span><b>{profile?.full_name||"—"}</b></div><div><span>{t("Email")}</span><b>{user.email}</b></div><div><span>{t("Phone")}</span><b>{profile?.phone||"—"}</b></div><div><span>{t("Role")}</span><b>{t("Customer")}</b></div></div></div>
+      <div className="panel"><div className="sectionHead"><h2>{t("Saved locations")}</h2><button className="secondary" onClick={()=>setLocModal(true)}><Plus size={16}/> {t("Add")}</button></div>{locations.map(l=><div className="locationRow" key={l.id}><MapPin size={17}/><div><b>{l.landmark}</b><span>{l.city}, {l.district}, {l.state} — {l.pincode}{l.location_url && <> · <a href={l.location_url} target="_blank" rel="noreferrer">{t("View shared location")}</a></>}</span></div></div>)}{!locations.length&&<p className="muted">{t("No saved locations.")}</p>}</div>
     </div>}
     {locModal&&<LocationModal userId={user.id} onClose={()=>setLocModal(false)} onSaved={x=>{setLocations([x,...locations]);setLocationId(x.id)}}/>}
   </div>;
@@ -982,11 +1129,12 @@ function ResetPassword({ onDone }) {
 }
 
 function Footer() {
+  const { t } = useLanguage();
   return <footer className="siteFooter">
     <div className="siteFooterInner">
       <div className="siteFooterBrand"><Zap size={16}/> BijliMitra</div>
       <div className="siteFooterInfo">
-        <span><b>An undertaking of Kashvi Enterprises</b></span>
+        <span><b>{t("An undertaking of Kashvi Enterprises")}</b></span>
         <span>·</span>
         <span>Bihat, Ward No. 11, Mandir Marg, Barauni, Begusarai, Bihar — 851115</span>
         <span>·</span>
@@ -1125,4 +1273,6 @@ return (
 );
 }
 
-export default App;
+export default function Root(){
+  return <LanguageProvider><App/></LanguageProvider>;
+}
