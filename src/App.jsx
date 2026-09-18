@@ -13,7 +13,8 @@ import {
   removeTechnicianService, generateFinalBill, verifyCompletedPin, startCashfreeBookingCheckout,
   startCashfreeFinalCheckout, createFinalPaymentQr, recordCashPayment,
   getDailyPayments, getAdminElectricians, getAdminOrders, getAdminOrdersByDate,
-  getAdminPendingOrders, routeOrderToElectrician, unrouteOrder
+  getAdminPendingOrders, routeOrderToElectrician, unrouteOrder,
+  requestPasswordReset, updatePassword
 } from "./supabase";
 
 const ADVANCE = 51;
@@ -76,12 +77,21 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
   const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
   const [showPassword,setShowPassword]=useState(false);
   const [showConfirmPassword,setShowConfirmPassword]=useState(false);
+  const [resetSent,setResetSent]=useState(false);
   async function submit(e) {
     e.preventDefault(); setBusy(true); setErr("");
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(form.email.trim())) {
       setErr("Please enter a valid email address (e.g. name@example.com).");
       setBusy(false);
+      return;
+    }
+    if (mode === "forgot") {
+      try {
+        const r = await requestPasswordReset(form.email.trim());
+        if (r.error) throw r.error;
+        setResetSent(true);
+      } catch(e) { setErr(errorText(e)); } finally { setBusy(false); }
       return;
     }
     if (mode === "signup" && form.password !== form.confirmPassword) {
@@ -102,42 +112,55 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
   return <div className="authPage">
     <div className="authCard">
       <div className="authLogo"><Zap size={25}/></div>
-      <h1>{mode==="login" ? "Welcome back" : "Create your BijliMitra account"}</h1>
-      <p className="muted">{mode==="login" ? "Sign in to book an electrician." : "An account is required before placing an order."}</p>
-      <form onSubmit={submit}>
-        {mode==="signup" && <>
-          <label>I am signing up as
-            <div className="roleToggle">
-              <button type="button" className={form.role==="customer"?"active":""} onClick={()=>setForm({...form,role:"customer"})}>Customer</button>
-              <button type="button" className={form.role==="electrician"?"active":""} onClick={()=>setForm({...form,role:"electrician"})}>Electrician</button>
+      <h1>{mode==="login" ? "Welcome back" : mode==="forgot" ? "Reset your password" : "Create your BijliMitra account"}</h1>
+      <p className="muted">{mode==="login" ? "Sign in to book an electrician." : mode==="forgot" ? "Enter your email and we'll send you a reset link." : "An account is required before placing an order."}</p>
+
+      {mode==="forgot" && resetSent ? (
+        <div className="noticeBox">
+          Check your inbox at <b>{form.email}</b> for a password reset link. It may take a minute to arrive.
+        </div>
+      ) : (
+        <form onSubmit={submit}>
+          {mode==="signup" && <>
+            <label>I am signing up as
+              <div className="roleToggle">
+                <button type="button" className={form.role==="customer"?"active":""} onClick={()=>setForm({...form,role:"customer"})}>Customer</button>
+                <button type="button" className={form.role==="electrician"?"active":""} onClick={()=>setForm({...form,role:"electrician"})}>Electrician</button>
+              </div>
+            </label>
+            <label>Full name<input required value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})}/></label>
+            <label>Phone<input required value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></label>
+          </>}
+          <label>Email<input type="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label>
+          {mode!=="forgot" && <label>Password
+            <div className="passwordField">
+              <input type={showPassword?"text":"password"} minLength="6" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/>
+              <button type="button" className="passwordToggle" onClick={()=>setShowPassword(!showPassword)} tabIndex={-1} aria-label={showPassword?"Hide password":"Show password"}>
+                {showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}
+              </button>
             </div>
-          </label>
-          <label>Full name<input required value={form.fullName} onChange={e=>setForm({...form,fullName:e.target.value})}/></label>
-          <label>Phone<input required value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></label>
-        </>}
-        <label>Email<input type="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label>
-        <label>Password
-          <div className="passwordField">
-            <input type={showPassword?"text":"password"} minLength="6" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/>
-            <button type="button" className="passwordToggle" onClick={()=>setShowPassword(!showPassword)} tabIndex={-1} aria-label={showPassword?"Hide password":"Show password"}>
-              {showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}
-            </button>
-          </div>
-        </label>
-        {mode==="signup" && <label>Confirm password
-          <div className="passwordField">
-            <input type={showConfirmPassword?"text":"password"} minLength="6" required value={form.confirmPassword} onChange={e=>setForm({...form,confirmPassword:e.target.value})}/>
-            <button type="button" className="passwordToggle" onClick={()=>setShowConfirmPassword(!showConfirmPassword)} tabIndex={-1} aria-label={showConfirmPassword?"Hide password":"Show password"}>
-              {showConfirmPassword ? <EyeOff size={17}/> : <Eye size={17}/>}
-            </button>
-          </div>
-        </label>}
-        {err && <div className="errorBox">{err}</div>}
-        <button className="primary full" disabled={busy}>{busy ? "Please wait…" : mode==="login" ? "Sign in" : "Create account"}</button>
-      </form>
-      <button className="linkBtn" onClick={()=>{setMode(mode==="login"?"signup":"login");setErr("")}}>
-        {mode==="login" ? "New customer? Create account" : "Already have an account? Sign in"}
-      </button>
+          </label>}
+          {mode==="login" && <button type="button" className="linkBtn forgotLink" onClick={()=>{setMode("forgot");setErr("");setResetSent(false)}}>Forgot password?</button>}
+          {mode==="signup" && <label>Confirm password
+            <div className="passwordField">
+              <input type={showConfirmPassword?"text":"password"} minLength="6" required value={form.confirmPassword} onChange={e=>setForm({...form,confirmPassword:e.target.value})}/>
+              <button type="button" className="passwordToggle" onClick={()=>setShowConfirmPassword(!showConfirmPassword)} tabIndex={-1} aria-label={showConfirmPassword?"Hide password":"Show password"}>
+                {showConfirmPassword ? <EyeOff size={17}/> : <Eye size={17}/>}
+              </button>
+            </div>
+          </label>}
+          {err && <div className="errorBox">{err}</div>}
+          <button className="primary full" disabled={busy}>{busy ? "Please wait…" : mode==="login" ? "Sign in" : mode==="forgot" ? "Send reset link" : "Create account"}</button>
+        </form>
+      )}
+
+      {mode==="forgot" ? (
+        <button className="linkBtn" onClick={()=>{setMode("login");setErr("");setResetSent(false)}}>← Back to sign in</button>
+      ) : (
+        <button className="linkBtn" onClick={()=>{setMode(mode==="login"?"signup":"login");setErr("")}}>
+          {mode==="login" ? "New customer? Create account" : "Already have an account? Sign in"}
+        </button>
+      )}
 
       <button
        type="button"
@@ -797,6 +820,49 @@ function Admin({user}) {
   </div>;
 }
 
+function ResetPassword({ onDone }) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function submit(e) {
+    e.preventDefault(); setErr("");
+    if (password.length < 6) { setErr("Password must be at least 6 characters."); return; }
+    if (password !== confirmPassword) { setErr("Passwords do not match."); return; }
+    setBusy(true);
+    try {
+      const r = await updatePassword(password);
+      if (r.error) throw r.error;
+      onDone();
+    } catch(e) { setErr(errorText(e)); } finally { setBusy(false); }
+  }
+
+  return <div className="authPage">
+    <div className="authCard">
+      <div className="authLogo"><Zap size={25}/></div>
+      <h1>Set a new password</h1>
+      <p className="muted">Choose a new password for your account.</p>
+      <form onSubmit={submit}>
+        <label>New password
+          <div className="passwordField">
+            <input type={showPassword?"text":"password"} minLength="6" required value={password} onChange={e=>setPassword(e.target.value)}/>
+            <button type="button" className="passwordToggle" onClick={()=>setShowPassword(!showPassword)} tabIndex={-1} aria-label={showPassword?"Hide password":"Show password"}>
+              {showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}
+            </button>
+          </div>
+        </label>
+        <label>Confirm new password
+          <input type={showPassword?"text":"password"} minLength="6" required value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)}/>
+        </label>
+        {err && <div className="errorBox">{err}</div>}
+        <button className="primary full" disabled={busy}>{busy ? "Saving…" : "Save new password"}</button>
+      </form>
+    </div>
+  </div>;
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -804,6 +870,7 @@ function App() {
 
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login");
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   async function loadUser(){
     setLoading(true);
     try {
@@ -819,6 +886,12 @@ function App() {
   const {
     data: { subscription }
   } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (_event === "PASSWORD_RECOVERY") {
+      // The user arrived here via the password-reset email link. Supabase
+      // has already given them a temporary recovery session -- show the
+      // "set new password" screen instead of the normal app.
+      setPasswordRecovery(true);
+    }
     setUser(session?.user ?? null);
 
     if (!session) {
@@ -831,6 +904,10 @@ function App() {
   };
 }, []);
   if(loading) return <div className="loading"><Zap/> Loading BijliMitra…</div>;
+
+  if (passwordRecovery) {
+    return <ResetPassword onDone={()=>{ setPasswordRecovery(false); loadUser(); }}/>;
+  }
 
   // Role is fixed at signup (see handle_new_user / the signup form's role
   // picker) and comes straight from the profile -- there is no in-app

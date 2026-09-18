@@ -248,6 +248,12 @@ a{ color: inherit; }
   background: var(--danger-soft); color: var(--danger);
   padding: 10px 12px; border-radius: var(--radius-s); font-size: 13px;
 }
+.noticeBox{
+  background: rgba(0,150,90,0.1); color: #0a7a4f;
+  padding: 12px 14px; border-radius: var(--radius-s); font-size: 13.5px;
+  margin-top: 16px;
+}
+.forgotLink{ align-self: flex-end; margin-top: -6px; font-size: 12.5px; }
 
 /* ---------- hero + ticket stub ---------- */
 .hero{

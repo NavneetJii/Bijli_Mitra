@@ -37,6 +37,18 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
+export async function requestPasswordReset(email) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin
+  });
+}
+
+export async function updatePassword(newPassword) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  return supabase.auth.updateUser({ password: newPassword });
+}
+
 export async function getProfile(userId) {
   const { data, error } = await supabase
     .from("profiles")
