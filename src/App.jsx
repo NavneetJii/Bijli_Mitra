@@ -111,6 +111,8 @@ const HI = {
   "Work Completed PIN": "कार्य पूर्ण पिन",
   "Give the Start PIN to your electrician once they arrive. Give the Completed PIN only after the work is fully done.": "इलेक्ट्रीशियन के पहुँचने पर उन्हें स्टार्ट पिन दें। पूर्ण पिन केवल तभी दें जब कार्य पूरी तरह से हो जाए।",
   "An undertaking of Kashvi Enterprises": "काश्वी एंटरप्राइजेज़ का एक उपक्रम",
+  "Login or Sign up to continue": "जारी रखने के लिए लॉगिन या साइन अप करें",
+  "Please log in or create an account to book a service.": "सेवा बुक करने के लिए कृपया लॉगिन करें या एक खाता बनाएँ।",
   "Terms & conditions": "नियम और शर्तें",
   "The ₹51 visiting charge (inclusive of GST) confirms your slot. It is non-refundable once paid and is a separate charge — it is NOT adjusted into your final bill.": "₹51 का विज़िटिंग चार्ज (जीएसटी सहित) आपकी बुकिंग की पुष्टि करता है। यह भुगतान के बाद गैर-वापसी योग्य है और एक अलग शुल्क है — यह आपके अंतिम बिल में समायोजित नहीं किया जाता है।",
   "A 5% GST is added on top of the service amount (base pack plus any technician-added services) in your final bill.": "आपके अंतिम बिल में सेवा राशि (बेस पैक और तकनीशियन द्वारा जोड़ी गई किसी भी सेवा) पर 5% जीएसटी जोड़ा जाता है।",
@@ -432,6 +434,7 @@ function Customer({user, profile, onRequireAuth}) {
 const [busy,setBusy]=useState(false);
 const [msg,setMsg]=useState("");
 const [bookingError,setBookingError]=useState("");
+const [showLoginPrompt,setShowLoginPrompt]=useState(false);
 const [openCategories,setOpenCategories]=useState({});
 
 const servicesByCategory = useMemo(()=>{
@@ -584,7 +587,7 @@ if (!selectedItems.length) {
         </div>
       </section>
       <nav className="menuGrid">
-        <button className="menuCard" onClick={()=>setTab("book")}>
+        <button className="menuCard" onClick={()=>{ if(!user){ setShowLoginPrompt(true); } else { setTab("book"); } }}>
           <ShoppingCart size={20}/>
           <div><b>{t("Book service")}</b><span>{t("Schedule a certified electrician")}</span></div>
           <ChevronRight size={18}/>
@@ -716,6 +719,16 @@ if (!selectedItems.length) {
       <div className="panel"><div className="sectionHead"><h2>{t("Saved locations")}</h2><button className="secondary" onClick={()=>setLocModal(true)}><Plus size={16}/> {t("Add")}</button></div>{locations.map(l=><div className="locationRow" key={l.id}><MapPin size={17}/><div><b>{l.landmark}</b><span>{l.city}, {l.district}, {l.state} — {l.pincode}{l.location_url && <> · <a href={l.location_url} target="_blank" rel="noreferrer">{t("View shared location")}</a></>}</span></div></div>)}{!locations.length&&<p className="muted">{t("No saved locations.")}</p>}</div>
     </div>}
     {locModal&&<LocationModal userId={user.id} onClose={()=>setLocModal(false)} onSaved={x=>{setLocations([x,...locations]);setLocationId(x.id)}}/>}
+    {showLoginPrompt && <div className="modalBackdrop" onClick={()=>setShowLoginPrompt(false)}>
+      <div className="modal loginPromptModal" onClick={e=>e.stopPropagation()}>
+        <div className="modalHead"><h2>{t("Login or Sign up to continue")}</h2><button className="iconBtn" onClick={()=>setShowLoginPrompt(false)}><X/></button></div>
+        <p className="muted">{t("Please log in or create an account to book a service.")}</p>
+        <div className="loginPromptActions">
+          <button className="secondary full" onClick={()=>{ setShowLoginPrompt(false); onRequireAuth("login"); }}>{t("Login")}</button>
+          <button className="primary full" onClick={()=>{ setShowLoginPrompt(false); onRequireAuth("signup"); }}>{t("Sign Up")}</button>
+        </div>
+      </div>
+    </div>}
   </div>;
 }
 
