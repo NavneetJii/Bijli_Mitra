@@ -657,3 +657,21 @@ tr.clickableRow:hover td{ background: var(--paper-raised, #f7f6ef); }
   .qty button, .qtyLine button{ width: 34px; height: 34px; }
   .locationPick{ padding: 14px; }
 }
+
+.siteFooter{
+  border-top: 1px solid var(--line);
+  background: #fff;
+  padding: 18px 24px;
+  margin-top: 24px;
+}
+.siteFooterInner{
+  max-width: 1100px; margin: 0 auto;
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap: 10px;
+}
+.siteFooterBrand{ display:flex; align-items:center; gap:6px; font-weight:700; color: var(--ink); font-size: 14px; }
+.siteFooterInfo{ display:flex; flex-wrap:wrap; align-items:center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); }
+.siteFooterInfo a{ color: var(--ink-soft); text-decoration: none; }
+.siteFooterInfo a:hover{ color: var(--copper); }
+@media (max-width: 640px){
+  .siteFooterInner{ flex-direction: column; align-items:flex-start; text-align:left; }
+}

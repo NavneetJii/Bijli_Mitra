@@ -981,6 +981,19 @@ function ResetPassword({ onDone }) {
   </div>;
 }
 
+function Footer() {
+  return <footer className="siteFooter">
+    <div className="siteFooterInner">
+      <div className="siteFooterBrand"><Zap size={16}/> BijliMitra</div>
+      <div className="siteFooterInfo">
+        <span>Bihat, Ward No. 11, Mandir Marg, Barauni, Begusarai, Bihar — 851115</span>
+        <span>·</span>
+        <a href="tel:+917338795810">+91 73387 95810</a>
+      </div>
+    </div>
+  </footer>;
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -1105,6 +1118,7 @@ return (
 
     )}
 
+    <Footer/>
   </>
 );
 }
