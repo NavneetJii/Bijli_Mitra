@@ -410,7 +410,7 @@ export async function getAdminElectricians() {
 export async function getAdminPendingOrders() {
   const { data, error } = await supabase
     .from("orders")
-    .select("id, status, customer_name, customer_phone, address_line, city, pincode, estimated_total, routed_electrician_id, created_at")
+    .select("id, status, customer_name, customer_phone, landmark, city, pincode, estimated_total, routed_electrician_id, created_at")
     .eq("status", "pending")
     .eq("advance_payment_status", "paid")
     .order("created_at", { ascending: true });
@@ -429,6 +429,16 @@ export async function routeOrderToElectrician(orderId, electricianId) {
 
 export async function unrouteOrder(orderId) {
   const { data, error } = await supabase.rpc("unroute_order", { p_order_id: orderId });
+  if (error) throw error;
+  return data;
+}
+
+export async function getOrderById(orderId) {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("id", orderId)
+    .single();
   if (error) throw error;
   return data;
 }

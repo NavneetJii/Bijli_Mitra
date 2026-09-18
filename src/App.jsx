@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Zap, MapPin, ShoppingCart, User, LogOut, ClipboardList,
   Plus, Minus, CheckCircle2, Clock3, Wrench, CreditCard,
-  ShieldCheck, ChevronRight, ChevronLeft, ChevronDown, X, RefreshCw, Wallet, Eye, EyeOff
+  ShieldCheck, ChevronRight, ChevronLeft, ChevronDown, X, RefreshCw, Wallet, Eye, EyeOff, Lock
 } from "lucide-react";
 import {
   supabase, supabaseConfigured, currentUser, signIn, signUp, signOut,
@@ -14,7 +14,7 @@ import {
   startCashfreeFinalCheckout, createFinalPaymentQr, recordCashPayment,
   getDailyPayments, getAdminElectricians, getAdminOrders, getAdminOrdersByDate,
   getAdminPendingOrders, routeOrderToElectrician, unrouteOrder,
-  requestPasswordReset, updatePassword
+  requestPasswordReset, updatePassword, getOrderById
 } from "./supabase";
 
 const ADVANCE = 51;
@@ -217,20 +217,52 @@ function PinBox({pins}) {
   </div>;
 }
 
+const VILLAGE_OPTIONS = [
+  "Bihat", "Urvarak Nagar Township", "Zeromile", "Pipra Dih", "Garhara",
+  "Nipania", "Teghra Bajaar", "Hazipur", "Pipra Devas", "Barauni Block"
+];
+
 function LocationModal({userId,onClose,onSaved}) {
-  const [f,setF]=useState({address_line:"",landmark:"",city:"",state:"",pincode:"",latitude:"",longitude:"",location_url:""});
+  const [f,setF]=useState({landmark:"",city:"",pincode:"",latitude:"",longitude:""});
   const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
-  async function save(e){e.preventDefault();setBusy(true);try{const x={...f,latitude:f.latitude?Number(f.latitude):null,longitude:f.longitude?Number(f.longitude):null,location_url:f.location_url?.trim()||null};const r=await addLocation(userId,x);onSaved(r);onClose();}catch(e){setErr(errorText(e))}finally{setBusy(false)}}
+  async function save(e){
+    e.preventDefault();
+    if(!f.city){ setErr("Please select a City / Village."); return; }
+    setBusy(true);
+    try{
+      const x={
+        // No separate free-text "address" field in this design -- the
+        // landmark is the only manually-entered identifying detail, so it
+        // doubles as address_line too (that column is still NOT NULL in
+        // the database). Display templates elsewhere show landmark once,
+        // not both.
+        address_line: f.landmark.trim(),
+        landmark: f.landmark.trim(),
+        city: f.city,
+        district: "Begusarai",
+        state: "Bihar",
+        pincode: f.pincode,
+        latitude: f.latitude?Number(f.latitude):null,
+        longitude: f.longitude?Number(f.longitude):null
+      };
+      const r=await addLocation(userId,x);
+      onSaved(r);
+      onClose();
+    }catch(e){setErr(errorText(e))}finally{setBusy(false)}
+  }
   return <div className="modalBackdrop"><div className="modal">
-    <div className="modalHead"><h2>Service location</h2><button className="iconBtn" onClick={onClose}><X/></button></div>
+    <div className="modalHead"><h2>Service Address</h2><button className="iconBtn" onClick={onClose}><X/></button></div>
     <form onSubmit={save}>
-      <label>Address<input required value={f.address_line} onChange={e=>setF({...f,address_line:e.target.value})}/></label>
-      <label>Landmark<input value={f.landmark} onChange={e=>setF({...f,landmark:e.target.value})}/></label>
-      <div className="grid2"><label>City<input required value={f.city} onChange={e=>setF({...f,city:e.target.value})}/></label><label>State<input required value={f.state} onChange={e=>setF({...f,state:e.target.value})}/></label></div>
+      <label>State<div className="lockedField"><span>Bihar</span><Lock size={14}/></div></label>
+      <label>District<div className="lockedField"><span>Begusarai</span><Lock size={14}/></div></label>
+      <label>City / Village<select required value={f.city} onChange={e=>setF({...f,city:e.target.value})}>
+        <option value="">Select City / Village</option>
+        {VILLAGE_OPTIONS.map(v=><option key={v} value={v}>{v}</option>)}
+      </select></label>
+      <label>Landmark<input required placeholder="Enter Landmark (e.g. Near Temple, Bus Stand)" value={f.landmark} onChange={e=>setF({...f,landmark:e.target.value})}/></label>
       <label>Pincode<input required pattern="[0-9]{6}" value={f.pincode} onChange={e=>setF({...f,pincode:e.target.value})}/></label>
-      <label>Current location link <span className="muted">(optional)</span><input type="url" placeholder="Paste your Google Maps link" value={f.location_url} onChange={e=>setF({...f,location_url:e.target.value})}/></label>
       {err&&<div className="errorBox">{err}</div>}
-      <button className="primary full" disabled={busy}>{busy?"Saving…":"Save location"}</button>
+      <button className="primary full" disabled={busy}>{busy?"Saving…":"Use This Address"}</button>
     </form>
   </div></div>
 }
@@ -463,7 +495,7 @@ if (!selectedItems.length) {
           {locations.length ? <div className="locationPickList">
             {locations.map(l=><button key={l.id} className={`locationPick ${locationId===l.id?"selected":""}`} onClick={()=>setLocationId(l.id)}>
               <MapPin size={17}/>
-              <div><b>{l.address_line}</b><span>{l.landmark} {l.city}, {l.state} — {l.pincode}</span></div>
+              <div><b>{l.landmark}</b><span>{l.city}, {l.district}, {l.state} — {l.pincode}</span></div>
               {locationId===l.id && <ShieldCheck size={17}/>}
             </button>)}
           </div> : <p className="muted">No saved locations yet — add one below.</p>}
@@ -509,7 +541,7 @@ if (!selectedItems.length) {
         <div className="sectionHead"><div><span className="orderTag">#{selectedOrder.id.slice(0,8).toUpperCase()}</span><h2>{prettyStatus(selectedOrder.status)}</h2></div><button className="iconBtn" onClick={()=>setSelectedOrder(null)}><X/></button></div>
         <div className="timeline">{history.map((h,i)=><div className="timelineRow" key={h.id||i}><span className="dot"></span><div><b>{prettyStatus(h.status)}</b><p>{h.note}</p><small>{new Date(h.created_at).toLocaleString()}</small></div></div>)}</div>
         {selectedOrder.electrician && <div className="addressBox"><User size={18}/><span>Your electrician: <b>{selectedOrder.electrician.full_name || "Assigned"}</b></span></div>}
-        <div className="addressBox"><MapPin size={18}/><span>{selectedOrder.address_line}, {selectedOrder.landmark}, {selectedOrder.city}, {selectedOrder.state} — {selectedOrder.pincode}{selectedOrder.location_url && <> · <a href={selectedOrder.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
+        <div className="addressBox"><MapPin size={18}/><span>{selectedOrder.landmark}, {selectedOrder.city}, {selectedOrder.district}, {selectedOrder.state} — {selectedOrder.pincode}{selectedOrder.location_url && <> · <a href={selectedOrder.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
         <PinBox pins={pins}/>
         <h3>Services</h3>{items.map(i=><div className="miniRow" key={i.id}><span>{i.service_name} × {i.quantity}</span><b>{money(i.total_price ?? i.unit_price*i.quantity)}</b></div>)}
         <BillBox items={items.filter(i=>i.source==="customer").map(i=>({price:i.unit_price,quantity:i.quantity}))} technicianItems={items.filter(i=>i.source==="technician").map(i=>({price:i.unit_price,quantity:i.quantity}))} advance={selectedOrder.advance_amount} final={Boolean(selectedOrder.final_total)}/>
@@ -526,7 +558,7 @@ if (!selectedItems.length) {
 
     {tab==="account" && <div className="accountGrid">
       <div className="panel"><h2>My account</h2><div className="profileRows"><div><span>Name</span><b>{profile?.full_name||"—"}</b></div><div><span>Email</span><b>{user.email}</b></div><div><span>Phone</span><b>{profile?.phone||"—"}</b></div><div><span>Role</span><b>Customer</b></div></div></div>
-      <div className="panel"><div className="sectionHead"><h2>Saved locations</h2><button className="secondary" onClick={()=>setLocModal(true)}><Plus size={16}/> Add</button></div>{locations.map(l=><div className="locationRow" key={l.id}><MapPin size={17}/><div><b>{l.address_line}</b><span>{l.landmark} {l.city}, {l.state} — {l.pincode}{l.location_url && <> · <a href={l.location_url} target="_blank" rel="noreferrer">View shared location</a></>}</span></div></div>)}{!locations.length&&<p className="muted">No saved locations.</p>}</div>
+      <div className="panel"><div className="sectionHead"><h2>Saved locations</h2><button className="secondary" onClick={()=>setLocModal(true)}><Plus size={16}/> Add</button></div>{locations.map(l=><div className="locationRow" key={l.id}><MapPin size={17}/><div><b>{l.landmark}</b><span>{l.city}, {l.district}, {l.state} — {l.pincode}{l.location_url && <> · <a href={l.location_url} target="_blank" rel="noreferrer">View shared location</a></>}</span></div></div>)}{!locations.length&&<p className="muted">No saved locations.</p>}</div>
     </div>}
     {locModal&&<LocationModal userId={user.id} onClose={()=>setLocModal(false)} onSaved={x=>{setLocations([x,...locations]);setLocationId(x.id)}}/>}
   </div>;
@@ -593,7 +625,7 @@ function Electrician({user}) {
     <div className="electricianGrid">
       <main>
         <div className="sectionHead"><div><h2>Pending orders</h2><p>Only confirmed ₹51 visiting-charge bookings are shown.</p></div><button className="iconBtn" onClick={load}><RefreshCw size={17}/></button></div>
-        {pending.filter(o=>!active || o.id===active.id).map(o=><div className="pendingCard" key={o.id}><div><span className="orderId">#{o.id.slice(0,8).toUpperCase()}</span><h3>Service booking</h3>{o.customer_name && <p><b>{o.customer_name}</b>{o.customer_phone && <> · {o.customer_phone}</>}</p>}<p>{o.address_line}, {o.city} — {o.pincode}</p><b>{money(o.estimated_total)} estimated</b></div><button className="primary" disabled={busy||Boolean(active)} onClick={()=>doAction(()=>acceptOrder(o.id,user.id))}>{active?"Busy":"Accept order"}</button></div>)}
+        {pending.filter(o=>!active || o.id===active.id).map(o=><div className="pendingCard" key={o.id}><div><span className="orderId">#{o.id.slice(0,8).toUpperCase()}</span><h3>Service booking</h3>{o.customer_name && <p><b>{o.customer_name}</b>{o.customer_phone && <> · {o.customer_phone}</>}</p>}<p>{o.landmark}, {o.city}, {o.district}, {o.state} — {o.pincode}{o.location_url && <> · <a href={o.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</p><b>{money(o.estimated_total)} estimated</b></div><button className="primary" disabled={busy||Boolean(active)} onClick={()=>doAction(()=>acceptOrder(o.id,user.id))}>{active?"Busy":"Accept order"}</button></div>)}
         {!pending.length&&<div className="empty">No confirmed pending orders.</div>}
         <h2 className="subHeading">My assigned orders</h2>
         {assigned.map(o=><button className={`assignedCard ${selected?.id===o.id?"selected":""}`} key={o.id} onClick={()=>selectOrder(o)}><span>#{o.id.slice(0,8).toUpperCase()}</span><b>{prettyStatus(o.status)}</b><span>{money(o.final_total||o.estimated_total)}</span></button>)}
@@ -602,7 +634,7 @@ function Electrician({user}) {
         {!selected?<div className="empty"><Wrench size={30}/><p>Select an assigned order.</p></div>:<>
           <div className="sectionHead"><div><span className="orderTag">#{selected.id.slice(0,8).toUpperCase()}</span><h2>{prettyStatus(selected.status)}</h2></div></div>
           {selected.customer_name && <div className="addressBox"><User size={18}/><span><b>{selected.customer_name}</b>{selected.customer_phone && <> · {selected.customer_phone}</>}</span></div>}
-          <div className="addressBox"><MapPin size={18}/><span>{selected.address_line}, {selected.landmark}, {selected.city}, {selected.state} — {selected.pincode}{selected.location_url && <> · <a href={selected.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
+          <div className="addressBox"><MapPin size={18}/><span>{selected.landmark}, {selected.city}, {selected.district}, {selected.state} — {selected.pincode}{selected.location_url && <> · <a href={selected.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
           <h3>Order services</h3>{items.map(i=><div className="miniRow" key={i.id}>
             <span>{i.service_name} × {i.quantity} <small>{i.source}</small></span>
             <span className="miniRowRight">
@@ -664,6 +696,23 @@ function Admin({user}) {
   const [dateOrders,setDateOrders]=useState(null);
   const [dateLoading,setDateLoading]=useState(false);
   const [statusFilter,setStatusFilter]=useState("");
+  const [selectedAdminOrder,setSelectedAdminOrder]=useState(null);
+  const [adminOrderItems,setAdminOrderItems]=useState([]);
+  const [adminOrderHistory,setAdminOrderHistory]=useState([]);
+  const [adminOrderPins,setAdminOrderPins]=useState(null);
+  const [adminOrderLoading,setAdminOrderLoading]=useState(false);
+
+  async function openAdminOrder(o){
+    setSelectedAdminOrder(o);
+    setAdminOrderLoading(true);
+    try{
+      const [full, it, hist] = await Promise.all([getOrderById(o.id), getOrderItems(o.id), getOrderHistory(o.id)]);
+      setSelectedAdminOrder(full);
+      setAdminOrderItems(it); setAdminOrderHistory(hist);
+      try{ setAdminOrderPins(await getOrderPins(o.id)); }catch(e){ setAdminOrderPins(null); }
+    }catch(e){ setMsg(errorText(e)); }
+    finally{ setAdminOrderLoading(false); }
+  }
 
   async function load(){
     try{
@@ -757,14 +806,14 @@ function Admin({user}) {
       {!pendingOrders.length && <p className="muted">No pending orders right now.</p>}
       {pendingOrders.map(o=>{
         const routedTo = o.routed_electrician_id ? electricians.find(e=>e.id===o.routed_electrician_id) : null;
-        return <div className="pendingCard" key={o.id}>
+        return <div className="pendingCard clickableRow" key={o.id} onClick={()=>openAdminOrder(o)}>
           <div>
             <span className="orderId">#{o.id.slice(0,8).toUpperCase()}</span>
             <h3>{o.customer_name || "—"}{o.customer_phone && <> · {o.customer_phone}</>}</h3>
-            <p>{o.address_line}, {o.city} — {o.pincode}</p>
+            <p>{o.landmark}, {o.city} — {o.pincode}</p>
             <b>{money(o.estimated_total)} estimated</b>
           </div>
-          <div className="routeControls">
+          <div className="routeControls" onClick={e=>e.stopPropagation()}>
             {routedTo
               ? <>
                   <span className="routedBadge">Routed to {routedTo.profiles?.full_name || "electrician"}</span>
@@ -804,7 +853,7 @@ function Admin({user}) {
           <thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Paid</th><th>Due</th><th>Date</th></tr></thead>
           <tbody>
             {dateLoading && selectedDate && <tr><td colSpan="6" className="muted">Loading…</td></tr>}
-            {!dateLoading && displayOrders.map(o=><tr key={o.id}>
+            {!dateLoading && displayOrders.map(o=><tr key={o.id} className="clickableRow" onClick={()=>openAdminOrder(o)}>
               <td>#{o.id.slice(0,8).toUpperCase()}</td>
               <td>{o.customer_name||"—"}<br/><small className="muted">{o.customer_phone}</small></td>
               <td>{prettyStatus(o.status)}</td>
@@ -817,6 +866,31 @@ function Admin({user}) {
         </table>
       </div>
     </div>
+
+    {selectedAdminOrder && <div className="modalBackdrop" onClick={()=>setSelectedAdminOrder(null)}>
+      <div className="modal orderDetail" onClick={e=>e.stopPropagation()}>
+        <div className="sectionHead">
+          <div><span className="orderTag">#{selectedAdminOrder.id.slice(0,8).toUpperCase()}</span><h2>{prettyStatus(selectedAdminOrder.status)}</h2></div>
+          <button className="iconBtn" onClick={()=>setSelectedAdminOrder(null)}><X/></button>
+        </div>
+        {adminOrderLoading ? <div className="empty">Loading order details…</div> : <>
+          {selectedAdminOrder.customer_name && <div className="addressBox"><User size={18}/><span><b>{selectedAdminOrder.customer_name}</b>{selectedAdminOrder.customer_phone && <> · {selectedAdminOrder.customer_phone}</>}</span></div>}
+          <div className="addressBox"><MapPin size={18}/><span>{selectedAdminOrder.landmark}, {selectedAdminOrder.city}, {selectedAdminOrder.district}, {selectedAdminOrder.state} — {selectedAdminOrder.pincode}{selectedAdminOrder.location_url && <> · <a href={selectedAdminOrder.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
+          {selectedAdminOrder.routed_electrician_id && <div className="addressBox"><Wrench size={18}/><span>Routed to: <b>{electricians.find(e=>e.id===selectedAdminOrder.routed_electrician_id)?.profiles?.full_name || "electrician"}</b></span></div>}
+          <PinBox pins={adminOrderPins}/>
+          <h3>Services</h3>
+          {adminOrderItems.map(i=><div className="miniRow" key={i.id}><span>{i.service_name} × {i.quantity} <small>{i.source}</small></span><b>{money(i.total_price ?? i.unit_price*i.quantity)}</b></div>)}
+          <BillBox
+            items={adminOrderItems.filter(i=>i.source==="customer").map(i=>({price:i.unit_price,quantity:i.quantity}))}
+            technicianItems={adminOrderItems.filter(i=>i.source==="technician").map(i=>({price:i.unit_price,quantity:i.quantity}))}
+            advance={selectedAdminOrder.advance_amount}
+            final={Boolean(selectedAdminOrder.final_total)}
+          />
+          <h3>Status history</h3>
+          <div className="timeline">{adminOrderHistory.map((h,i)=><div className="timelineRow" key={h.id||i}><span className="dot"></span><div><b>{prettyStatus(h.status)}</b><p>{h.note}</p><small>{new Date(h.created_at).toLocaleString()}</small></div></div>)}</div>
+        </>}
+      </div>
+    </div>}
   </div>;
 }
 
