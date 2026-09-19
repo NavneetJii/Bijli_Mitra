@@ -23,6 +23,20 @@ export async function signIn(email, password) {
   return supabase.auth.signInWithPassword({ email, password });
 }
 
+export async function signInWithGoogle() {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  // Redirects to Google, then back to this same page. There's no session
+  // to return here synchronously -- the app's existing onAuthStateChange
+  // listener picks up the resulting session once the browser lands back.
+  // handle_new_user's role default ('customer' unless metadata says
+  // otherwise) applies here too, so a Google sign-in always creates a
+  // customer account, matching the public signup form.
+  return supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.origin }
+  });
+}
+
 export async function signUp(email, password, fullName, phone, role = "customer") {
   if (!supabase) throw new Error("Supabase is not configured.");
   return supabase.auth.signUp({
