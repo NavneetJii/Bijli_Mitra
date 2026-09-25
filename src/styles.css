@@ -237,6 +237,16 @@ a{ color: inherit; }
   margin-bottom: 14px;
 }
 .authCard form{ display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+.authDivider{ display:flex; align-items:center; gap: 12px; margin: 18px 0 14px; color: var(--ink-soft); font-size: 12.5px; }
+.authDivider::before, .authDivider::after{ content:""; flex:1; height:1px; background: var(--line); }
+.googleBtn{
+  display:flex; align-items:center; justify-content:center; gap: 10px;
+  width:100%; padding: 11px 14px; border: 1px solid var(--line); border-radius: var(--radius-s);
+  background:#fff; color: var(--ink); font-family: var(--font-body); font-size: 14px; font-weight:600;
+  cursor:pointer;
+}
+.googleBtn:hover{ background: var(--paper-raised, #f7f6ef); }
+.googleBtn:disabled{ opacity: 0.6; cursor: default; }
 .authCard label{ display:flex; flex-direction:column; gap:6px; font-size:13px; color: var(--ink-soft); font-weight:500; }
 .authCard input, select, .modal input{
   font-family: var(--font-body);
@@ -697,3 +707,12 @@ tr.clickableRow:hover td{ background: var(--paper-raised, #f7f6ef); }
 @media (max-width: 640px){
   .siteFooterInner{ flex-direction: column; align-items:flex-start; text-align:left; }
 }
+
+.inlineEditRow{ display:inline-flex; align-items:center; gap:6px; vertical-align:middle; }
+.inlineEditInput{
+  border:1px solid var(--line, #d8dee6); border-radius:6px; padding:4px 8px;
+  font-size: 14px; min-width: 140px;
+}
+.inlineEditInput.small{ min-width: 120px; font-size: 12.5px; padding:3px 6px; }
+.fieldError{ color:#c0392b; font-size:12px; margin-top:4px; }
+.electricianRow{ align-items:flex-start; flex-wrap:wrap; gap:6px; }

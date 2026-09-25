@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useContext, createContext } from "
 import {
   Zap, MapPin, ShoppingCart, User, LogOut, ClipboardList,
   Plus, Minus, CheckCircle2, Clock3, Wrench, CreditCard,
-  ShieldCheck, ChevronRight, ChevronLeft, ChevronDown, X, RefreshCw, Wallet, Eye, EyeOff, Lock
+  ShieldCheck, ChevronRight, ChevronLeft, ChevronDown, X, RefreshCw, Wallet, Eye, EyeOff, Lock, Pencil, Check
 } from "lucide-react";
 import {
   supabase, supabaseConfigured, currentUser, signIn, signUp, signOut, signInWithGoogle,
@@ -14,7 +14,8 @@ import {
   startCashfreeFinalCheckout, createFinalPaymentQr, recordCashPayment,
   getDailyPayments, getAdminElectricians, getAdminOrders, getAdminOrdersByDate,
   getAdminPendingOrders, routeOrderToElectrician, unrouteOrder,
-  requestPasswordReset, updatePassword, getOrderById, createElectrician
+  requestPasswordReset, updatePassword, getOrderById, createElectrician,
+  updateOwnPhone, adminUpdateElectricianPhone
 } from "./supabase";
 
 const ADVANCE = 51;
@@ -112,6 +113,12 @@ const HI = {
   "Give the Start PIN to your electrician once they arrive. Give the Completed PIN only after the work is fully done.": "इलेक्ट्रीशियन के पहुँचने पर उन्हें स्टार्ट पिन दें। पूर्ण पिन केवल तभी दें जब कार्य पूरी तरह से हो जाए।",
   "An undertaking of Kashvi Enterprises": "काश्वी एंटरप्राइजेज़ का एक उपक्रम",
   "Privacy Policy": "गोपनीयता नीति",
+  "Phone number can't be empty.": "फ़ोन नंबर खाली नहीं हो सकता।",
+  "Enter phone number": "फ़ोन नंबर दर्ज करें",
+  "Save": "सहेजें",
+  "Cancel": "रद्द करें",
+  "Edit": "संपादित करें",
+  "Not added": "जोड़ा नहीं गया",
   "Login or Sign up to continue": "जारी रखने के लिए लॉगिन या साइन अप करें",
   "or": "या",
   "Continue with Google": "Google से जारी रखें",
@@ -453,6 +460,28 @@ const [msg,setMsg]=useState("");
 const [bookingError,setBookingError]=useState("");
 const [showLoginPrompt,setShowLoginPrompt]=useState(false);
 const [openCategories,setOpenCategories]=useState({});
+const [editingPhone,setEditingPhone]=useState(false);
+const [phoneDraft,setPhoneDraft]=useState(profile?.phone||"");
+const [phoneValue,setPhoneValue]=useState(profile?.phone||"");
+const [phoneBusy,setPhoneBusy]=useState(false);
+const [phoneErr,setPhoneErr]=useState("");
+
+useEffect(()=>{ setPhoneValue(profile?.phone||""); setPhoneDraft(profile?.phone||""); }, [profile?.phone]);
+
+async function savePhone() {
+  const trimmed = phoneDraft.trim();
+  if (!trimmed) { setPhoneErr(t("Phone number can't be empty.")); return; }
+  setPhoneBusy(true); setPhoneErr("");
+  try {
+    await updateOwnPhone(user.id, trimmed);
+    setPhoneValue(trimmed);
+    setEditingPhone(false);
+  } catch(e) {
+    setPhoneErr(errorText(e));
+  } finally {
+    setPhoneBusy(false);
+  }
+}
 
 const servicesByCategory = useMemo(()=>{
   const groups = {};
@@ -732,7 +761,33 @@ if (!selectedItems.length) {
 
 
     {tab==="account" && <div className="accountGrid">
-      <div className="panel"><h2>{t("My account")}</h2><div className="profileRows"><div><span>{t("Name")}</span><b>{profile?.full_name||"—"}</b></div><div><span>{t("Email")}</span><b>{user.email}</b></div><div><span>{t("Phone")}</span><b>{profile?.phone||"—"}</b></div><div><span>{t("Role")}</span><b>{t("Customer")}</b></div></div></div>
+      <div className="panel"><h2>{t("My account")}</h2><div className="profileRows">
+        <div><span>{t("Name")}</span><b>{profile?.full_name||"—"}</b></div>
+        <div><span>{t("Email")}</span><b>{user.email}</b></div>
+        <div>
+          <span>{t("Phone")}</span>
+          {editingPhone ? (
+            <div className="inlineEditRow">
+              <input
+                className="inlineEditInput"
+                value={phoneDraft}
+                onChange={e=>setPhoneDraft(e.target.value)}
+                placeholder={t("Enter phone number")}
+                disabled={phoneBusy}
+              />
+              <button className="iconBtn" disabled={phoneBusy} onClick={savePhone} title={t("Save")}><Check size={16}/></button>
+              <button className="iconBtn" disabled={phoneBusy} onClick={()=>{setEditingPhone(false);setPhoneDraft(phoneValue);setPhoneErr("")}} title={t("Cancel")}><X size={16}/></button>
+            </div>
+          ) : (
+            <b className="inlineEditRow">
+              {phoneValue || t("Not added")}
+              <button className="iconBtn" onClick={()=>{setEditingPhone(true);setPhoneDraft(phoneValue)}} title={t("Edit")}><Pencil size={14}/></button>
+            </b>
+          )}
+          {phoneErr && <div className="fieldError">{phoneErr}</div>}
+        </div>
+        <div><span>{t("Role")}</span><b>{t("Customer")}</b></div>
+      </div></div>
       <div className="panel"><div className="sectionHead"><h2>{t("Saved locations")}</h2><button className="secondary" onClick={()=>setLocModal(true)}><Plus size={16}/> {t("Add")}</button></div>{locations.map(l=><div className="locationRow" key={l.id}><MapPin size={17}/><div><b>{l.landmark}</b><span>{l.city}, {l.district}, {l.state} — {l.pincode}{l.location_url && <> · <a href={l.location_url} target="_blank" rel="noreferrer">{t("View shared location")}</a></>}</span></div></div>)}{!locations.length&&<p className="muted">{t("No saved locations.")}</p>}</div>
     </div>}
     {locModal&&<LocationModal userId={user.id} onClose={()=>setLocModal(false)} onSaved={x=>{setLocations([x,...locations]);setLocationId(x.id)}}/>}
@@ -922,6 +977,25 @@ function Admin({user}) {
   const [newElectrician,setNewElectrician]=useState({email:"",password:"",fullName:"",phone:""});
   const [addElectricianBusy,setAddElectricianBusy]=useState(false);
   const [addElectricianErr,setAddElectricianErr]=useState("");
+  const [editingElectricianPhone,setEditingElectricianPhone]=useState(null);
+  const [electricianPhoneDraft,setElectricianPhoneDraft]=useState("");
+  const [electricianPhoneBusy,setElectricianPhoneBusy]=useState(false);
+  const [electricianPhoneErr,setElectricianPhoneErr]=useState("");
+
+  async function saveElectricianPhone(electricianId){
+    const trimmed = electricianPhoneDraft.trim();
+    if (!trimmed) { setElectricianPhoneErr("Phone number can't be empty."); return; }
+    setElectricianPhoneBusy(true); setElectricianPhoneErr("");
+    try {
+      await adminUpdateElectricianPhone(electricianId, trimmed);
+      setElectricians(electricians.map(e => e.id === electricianId ? { ...e, profiles: { ...e.profiles, phone: trimmed } } : e));
+      setEditingElectricianPhone(null);
+    } catch(e) {
+      setElectricianPhoneErr(e?.message || String(e));
+    } finally {
+      setElectricianPhoneBusy(false);
+    }
+  }
 
   async function submitNewElectrician(e){
     e.preventDefault();
@@ -1044,8 +1118,29 @@ function Admin({user}) {
           {addElectricianErr && <div className="errorBox">{addElectricianErr}</div>}
           <button className="primary full" disabled={addElectricianBusy}>{addElectricianBusy?"Creating…":"Create electrician account"}</button>
         </form>}
-        {electricians.map(e=><div className="miniRow" key={e.id}>
-          <span>{e.profiles?.full_name || "—"} <small>{e.profiles?.phone}</small></span>
+        {electricians.map(e=><div className="miniRow electricianRow" key={e.id}>
+          <span>
+            {e.profiles?.full_name || "—"}{" "}
+            {editingElectricianPhone===e.id ? (
+              <span className="inlineEditRow">
+                <input
+                  className="inlineEditInput small"
+                  value={electricianPhoneDraft}
+                  onChange={ev=>setElectricianPhoneDraft(ev.target.value)}
+                  placeholder="Phone number"
+                  disabled={electricianPhoneBusy}
+                />
+                <button className="iconBtn" disabled={electricianPhoneBusy} onClick={()=>saveElectricianPhone(e.id)} title="Save"><Check size={14}/></button>
+                <button className="iconBtn" disabled={electricianPhoneBusy} onClick={()=>{setEditingElectricianPhone(null);setElectricianPhoneErr("")}} title="Cancel"><X size={14}/></button>
+              </span>
+            ) : (
+              <small className="inlineEditRow">
+                {e.profiles?.phone || "No phone"}
+                <button className="iconBtn" onClick={()=>{setEditingElectricianPhone(e.id);setElectricianPhoneDraft(e.profiles?.phone||"");setElectricianPhoneErr("")}} title="Edit phone"><Pencil size={12}/></button>
+              </small>
+            )}
+            {editingElectricianPhone===e.id && electricianPhoneErr && <div className="fieldError">{electricianPhoneErr}</div>}
+          </span>
           <span className={`availability ${e.availability}`}><span></span>{prettyStatus(e.availability)}</span>
         </div>)}
         {!electricians.length && <p className="muted">No electricians yet.</p>}

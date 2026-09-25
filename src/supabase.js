@@ -73,6 +73,28 @@ export async function getProfile(userId) {
   return data;
 }
 
+export async function updateOwnPhone(userId, phone) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ phone, updated_at: new Date().toISOString() })
+    .eq("id", userId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function adminUpdateElectricianPhone(electricianId, phone) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ phone, updated_at: new Date().toISOString() })
+    .eq("id", electricianId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function getServices() {
   const { data, error } = await supabase
     .from("services")
