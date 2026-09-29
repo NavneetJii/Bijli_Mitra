@@ -121,19 +121,36 @@ function getOrCreateVisitorId() {
   }
 }
 
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
 export async function recordSiteVisit() {
   if (!supabase) return;
-  try {
-    const visitorId = getOrCreateVisitorId();
-    await supabase
-      .from("site_visits")
-      .upsert(
-        { visitor_id: visitorId, user_agent: navigator.userAgent },
-        { onConflict: "visitor_id,visit_date", ignoreDuplicates: true }
-      );
-  } catch (e) {
-    // Visit tracking must never break the app for the visitor.
-    console.error("recordSiteVisit failed:", e);
+  const visitorId = getOrCreateVisitorId();
+  // This is a single fire-and-forget call made on every page load, with no
+  // user-visible retry path (unlike the booking flow, which already retries
+  // getCustomerOrders up to 6 times). A brief network blip -- very common on
+  // rural mobile connections -- would otherwise just silently drop the
+  // visit with nothing telling us it happened. So this retries a couple of
+  // times with a short delay before giving up quietly.
+  const attempts = [0, 1500, 4000];
+  for (let i = 0; i < attempts.length; i++) {
+    if (attempts[i]) await sleep(attempts[i]);
+    try {
+      const { error } = await supabase
+        .from("site_visits")
+        .upsert(
+          { visitor_id: visitorId, user_agent: navigator.userAgent },
+          { onConflict: "visitor_id,visit_date", ignoreDuplicates: true }
+        );
+      if (error) throw error;
+      return;
+    } catch (e) {
+      if (i === attempts.length - 1) {
+        // Visit tracking must never break the app for the visitor -- this
+        // is the last attempt, so just log it and move on.
+        console.error("recordSiteVisit failed after retries:", e);
+      }
+    }
   }
 }
 
