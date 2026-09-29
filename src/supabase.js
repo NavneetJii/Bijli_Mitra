@@ -95,6 +95,63 @@ export async function adminUpdateElectricianPhone(electricianId, phone) {
   return data;
 }
 
+/**
+ * Website visitor tracking (site-wide -- counts anyone loading the site,
+ * not just logged-in customers). A random id is generated once per browser
+ * and kept in localStorage; recordSiteVisit() upserts a
+ * (visitor_id, today's-date-in-IST) row and silently no-ops on a repeat call
+ * the same day (DB unique constraint + ignoreDuplicates), so this is safe
+ * to call on every single page load without inflating the count.
+ */
+function getOrCreateVisitorId() {
+  try {
+    let id = localStorage.getItem("bijlimitra_visitor_id");
+    if (!id) {
+      id = (typeof crypto !== "undefined" && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem("bijlimitra_visitor_id", id);
+    }
+    return id;
+  } catch (e) {
+    // Private browsing / storage blocked -- fall back to a per-load id
+    // rather than throwing. This one visit just won't be de-duplicated
+    // against this same browser's future loads.
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+}
+
+export async function recordSiteVisit() {
+  if (!supabase) return;
+  try {
+    const visitorId = getOrCreateVisitorId();
+    await supabase
+      .from("site_visits")
+      .upsert(
+        { visitor_id: visitorId, user_agent: navigator.userAgent },
+        { onConflict: "visitor_id,visit_date", ignoreDuplicates: true }
+      );
+  } catch (e) {
+    // Visit tracking must never break the app for the visitor.
+    console.error("recordSiteVisit failed:", e);
+  }
+}
+
+/**
+ * Admin-only: unique visitor count per calendar day (IST), most recent
+ * first. Backed by the admin_daily_visitors view -- RLS on the underlying
+ * site_visits table (is_admin()) means a non-admin session gets zero rows
+ * back even if it somehow called this.
+ */
+export async function getVisitorStats(days = 30) {
+  const { data, error } = await supabase
+    .from("admin_daily_visitors")
+    .select("*")
+    .limit(days);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function getServices() {
   const { data, error } = await supabase
     .from("services")

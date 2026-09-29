@@ -15,7 +15,8 @@ import {
   getDailyPayments, getAdminElectricians, getAdminOrders, getAdminOrdersByDate,
   getAdminPendingOrders, routeOrderToElectrician, unrouteOrder,
   requestPasswordReset, updatePassword, getOrderById, createElectrician,
-  updateOwnPhone, adminUpdateElectricianPhone
+  updateOwnPhone, adminUpdateElectricianPhone,
+  recordSiteVisit, getVisitorStats
 } from "./supabase";
 
 const ADVANCE = 51;
@@ -203,6 +204,14 @@ function prettyStatus(s) {
   return String(s || "").replaceAll("_", " ").replace(/\b\w/g, x => x.toUpperCase());
 }
 function errorText(e) { return e?.message || String(e); }
+// Calendar date (YYYY-MM-DD) in IST, optionally offset by whole days --
+// used to match the admin_daily_visitors view's `day` column, which is
+// grouped in IST too, so "today"/"yesterday" here mean the same calendar
+// day an India-based visitor would call today/yesterday.
+function istDateString(offsetDays = 0) {
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
 
 function Header({ user, profile, role, onLogout, onLogin, onSignup }) {
   const { lang, toggleLang, t } = useLanguage();
@@ -981,6 +990,7 @@ function Admin({user}) {
   const [electricianPhoneDraft,setElectricianPhoneDraft]=useState("");
   const [electricianPhoneBusy,setElectricianPhoneBusy]=useState(false);
   const [electricianPhoneErr,setElectricianPhoneErr]=useState("");
+  const [visitorStats,setVisitorStats]=useState([]);
 
   async function saveElectricianPhone(electricianId){
     const trimmed = electricianPhoneDraft.trim();
@@ -1033,8 +1043,8 @@ function Admin({user}) {
 
   async function load(){
     try{
-      const [dp, el, or, po] = await Promise.all([getDailyPayments(30), getAdminElectricians(), getAdminOrders(100), getAdminPendingOrders()]);
-      setDailyPayments(dp); setElectricians(el); setOrders(or); setPendingOrders(po);
+      const [dp, el, or, po, vs] = await Promise.all([getDailyPayments(30), getAdminElectricians(), getAdminOrders(100), getAdminPendingOrders(), getVisitorStats(30)]);
+      setDailyPayments(dp); setElectricians(el); setOrders(or); setPendingOrders(po); setVisitorStats(vs);
     }catch(e){ setMsg(errorText(e)); }
     finally{ setLoading(false); }
   }
@@ -1076,6 +1086,7 @@ function Admin({user}) {
       .on("postgres_changes",{event:"*",schema:"public",table:"orders"},()=>{ load(); if(selectedDate) loadForDate(selectedDate); })
       .on("postgres_changes",{event:"*",schema:"public",table:"payments"},load)
       .on("postgres_changes",{event:"*",schema:"public",table:"electrician_profiles"},load)
+      .on("postgres_changes",{event:"*",schema:"public",table:"site_visits"},load)
       .subscribe();
     return ()=>{ supabase.removeChannel(channel); };
   },[selectedDate]);
@@ -1084,9 +1095,37 @@ function Admin({user}) {
 
   const displayOrders = (selectedDate ? (dateOrders||[]) : orders).filter(o => !statusFilter || o.status === statusFilter);
 
+  const todayStr = istDateString(0);
+  const yesterdayStr = istDateString(-1);
+  const sevenDaysAgoStr = istDateString(-6);
+  const todayVisitors = visitorStats.find(v=>v.day===todayStr)?.visitor_count || 0;
+  const yesterdayVisitors = visitorStats.find(v=>v.day===yesterdayStr)?.visitor_count || 0;
+  const last7DaysVisitors = visitorStats.filter(v=>v.day>=sevenDaysAgoStr).reduce((a,v)=>a+Number(v.visitor_count||0),0);
+
   return <div className="page">
     <section className="dashHeader"><div><h1>Admin dashboard</h1><p>Payments, electrician status, and recent orders across the platform.</p></div></section>
     {msg && <div className="notice">{msg}</div>}
+
+    <div className="panel adminSection">
+      <div className="sectionHead"><div><h2>Website visitors</h2><p>Unique visitors per day, site-wide — counted once per browser per day, whether or not they log in.</p></div></div>
+      <div className="visitorStatsRow">
+        <div className="visitorStatBox highlight"><span>Today</span><b>{todayVisitors}</b></div>
+        <div className="visitorStatBox"><span>Yesterday</span><b>{yesterdayVisitors}</b></div>
+        <div className="visitorStatBox"><span>Last 7 days</span><b>{last7DaysVisitors}</b></div>
+      </div>
+      <div className="tableWrap">
+        <table className="adminTable">
+          <thead><tr><th>Date</th><th>Unique visitors</th></tr></thead>
+          <tbody>
+            {visitorStats.map(v=><tr key={v.day}>
+              <td>{new Date(`${v.day}T00:00:00+05:30`).toLocaleDateString()}</td>
+              <td>{v.visitor_count}</td>
+            </tr>)}
+            {!visitorStats.length && <tr><td colSpan="2" className="muted">No visits recorded yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <div className="adminGrid">
       <div className="panel">
@@ -1319,6 +1358,12 @@ function App() {
   }
  useEffect(() => {
   loadUser();
+
+  // Fire-and-forget: records this browser as a unique visitor for today
+  // (site-wide, before we even know if/who is logged in). Never blocks or
+  // throws into the rest of app startup -- recordSiteVisit swallows its
+  // own errors.
+  recordSiteVisit();
 
   if (!supabase) return;
 
