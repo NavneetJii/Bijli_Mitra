@@ -16,7 +16,8 @@ import {
   getAdminPendingOrders, routeOrderToElectrician, unrouteOrder,
   requestPasswordReset, updatePassword, getOrderById, createElectrician,
   updateOwnPhone, adminUpdateElectricianPhone,
-  recordSiteVisit, getVisitorStats
+  recordSiteVisit, getVisitorStats,
+  replaceCustomerService
 } from "./supabase";
 
 const ADVANCE = 51;
@@ -819,6 +820,17 @@ function Electrician({user}) {
   const [pin,setPin]=useState(""),[serviceId,setServiceId]=useState(""),[qty,setQty]=useState(1),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");
   const [qr,setQr]=useState(null);
   const [completedDateFilter,setCompletedDateFilter]=useState("");
+  const [swapItemId,setSwapItemId]=useState(null);
+  const [swapServiceId,setSwapServiceId]=useState("");
+  const [swapQty,setSwapQty]=useState(1);
+
+  function startSwap(i){ setSwapItemId(i.id); setSwapServiceId(""); setSwapQty(i.quantity); }
+  function cancelSwap(){ setSwapItemId(null); setSwapServiceId(""); setSwapQty(1); }
+  async function confirmSwap(i){
+    if(!swapServiceId) return;
+    await doAction(()=>replaceCustomerService(selected.id,user.id,i.id,swapServiceId,swapQty));
+    cancelSwap();
+  }
 
   async function requestFinalQr(orderId){
     setBusy(true);setMsg("");
@@ -915,15 +927,34 @@ function Electrician({user}) {
           <div className="sectionHead"><div><span className="orderTag">#{selected.id.slice(0,8).toUpperCase()}</span><h2>{prettyStatus(selected.status)}</h2></div></div>
           {selected.customer_name && <div className="addressBox"><User size={18}/><span><b>{selected.customer_name}</b>{selected.customer_phone && <> · {selected.customer_phone}</>}</span></div>}
           <div className="addressBox"><MapPin size={18}/><span>{selected.landmark}, {selected.city}, {selected.district}, {selected.state} — {selected.pincode}{selected.location_url && <> · <a href={selected.location_url} target="_blank" rel="noreferrer">Open shared location</a></>}</span></div>
-          <h3>Order services</h3>{items.map(i=><div className="miniRow" key={i.id}>
+          <h3>Order services</h3>{items.map(i=><div className={`miniRow ${swapItemId===i.id?"hasSwap":""}`} key={i.id}>
             <span>{i.service_name} × {i.quantity} <small>{i.source}</small></span>
             <span className="miniRowRight">
               <b>{money(i.total_price ?? i.unit_price*i.quantity)}</b>
               {i.source==="technician" && selected.status==="work_in_progress" && (
                 <button className="iconBtn danger" title="Remove this service" disabled={busy} onClick={()=>doAction(()=>removeTechnicianService(selected.id,user.id,i.id))}><X size={14}/></button>
               )}
+              {i.source==="customer" && selected.status==="work_in_progress" && (
+                <button className="iconBtn" title="Change the service the customer booked" disabled={busy} onClick={()=>swapItemId===i.id?cancelSwap():startSwap(i)}><Pencil size={14}/></button>
+              )}
             </span>
+            {swapItemId===i.id && <div className="swapServicePanel">
+              <select value={swapServiceId} onChange={e=>setSwapServiceId(e.target.value)}>
+                <option value="">Select the correct service…</option>
+                {services.map(s=><option key={s.id} value={s.id}>{s.name} — {money(s.price)}</option>)}
+              </select>
+              <div className="qtyLine">
+                <button onClick={()=>setSwapQty(Math.max(1,swapQty-1))}><Minus size={14}/></button>
+                <b>{swapQty}</b>
+                <button onClick={()=>setSwapQty(swapQty+1)}><Plus size={14}/></button>
+              </div>
+              <div className="swapServiceActions">
+                <button className="secondary" disabled={busy} onClick={cancelSwap}>Cancel</button>
+                <button className="primary" disabled={busy||!swapServiceId} onClick={()=>confirmSwap(i)}>Replace service</button>
+              </div>
+            </div>}
           </div>)}
+          {selected.status==="work_in_progress" && items.some(i=>i.source==="customer") && <p className="muted tableHint">Use the pencil to correct a service the customer originally selected if the actual work turned out different — this only unlocks after the Work Start PIN is verified.</p>}
           <div className="earningsBox"><span>Your Share</span><b>{money(computeElectricianShare(selected))}</b></div>
 
           {selected.status==="assigned" && <div className="actionBox"><h3>Start work</h3><p>Ask the customer for the Work Start PIN.</p><input inputMode="numeric" maxLength="6" placeholder="Enter start PIN" value={pin} onChange={e=>setPin(e.target.value)}/><button className="primary full" disabled={busy} onClick={()=>doAction(()=>startOrderWork(selected.id,pin))}>Verify & start work</button></div>}

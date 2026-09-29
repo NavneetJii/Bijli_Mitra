@@ -513,6 +513,17 @@ a{ color: inherit; }
 .miniRowRight{ display:flex; align-items:center; gap:10px; }
 .iconBtn.danger{ border-color: var(--danger-soft); color: var(--danger); width:26px; height:26px; }
 .iconBtn.danger:hover{ background: var(--danger-soft); border-color: var(--danger); }
+.miniRow.hasSwap{ flex-wrap:wrap; gap:8px; }
+.swapServicePanel{
+  flex-basis: 100%; display:flex; flex-direction:column; gap:10px;
+  background: var(--paper-raised, #f7f6ef); border: 1px solid var(--line);
+  border-radius: var(--radius-s); padding: 12px; margin-top: 4px;
+}
+.swapServicePanel select{
+  width:100%; border: 1px solid var(--line); border-radius: var(--radius-s);
+  padding: 9px 10px; font-size: 13.5px; font-family: var(--font-body);
+}
+.swapServiceActions{ display:flex; gap:8px; justify-content:flex-end; }
 
 .pinBox{
   background: var(--circuit-soft); border: 1px solid #C7DED8;

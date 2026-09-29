@@ -325,6 +325,28 @@ export async function removeTechnicianService(orderId, electricianId, orderItemI
   return data;
 }
 
+/**
+ * Lets the electrician correct a service the CUSTOMER originally selected
+ * (as opposed to one the electrician added on-site -- use
+ * removeTechnicianService for those) once work is actually in progress,
+ * i.e. only after the Work Start PIN has been verified. Swaps the order
+ * item out for a different service; quantity defaults to the original
+ * item's quantity if not given. The bill still shows the result under
+ * "Base Service Pack" (source stays "customer"), and the change is logged
+ * to the order's timeline so the customer and admin can both see it.
+ */
+export async function replaceCustomerService(orderId, electricianId, orderItemId, newServiceId, quantity) {
+  const { data, error } = await supabase.rpc("replace_customer_service", {
+    p_order_id: orderId,
+    p_electrician_id: electricianId,
+    p_order_item_id: orderItemId,
+    p_new_service_id: newServiceId,
+    p_quantity: quantity ?? null
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function generateFinalBill(orderId, electricianId) {
   const { data, error } = await supabase.rpc("generate_final_bill", {
     p_order_id: orderId,
