@@ -125,6 +125,18 @@ const HI = {
   "Add the address where the electrician should visit.": "वह पता जोड़ें जहाँ इलेक्ट्रीशियन को आना है।",
   "Change address": "पता बदलें",
   "Please log in or create an account to pay the ₹51 visiting charge and confirm your booking. Your selected services and address will be kept.": "₹51 विज़िटिंग चार्ज देने और बुकिंग पक्की करने के लिए कृपया लॉगिन करें या खाता बनाएँ। आपकी चुनी हुई सेवाएँ और पता सुरक्षित रहेंगे।",
+  "Popular services": "लोकप्रिय सेवाएँ",
+  "Tap a service to start booking.": "बुकिंग शुरू करने के लिए सेवा पर टैप करें।",
+  "from": "से शुरू",
+  "View all services": "सभी सेवाएँ देखें",
+  "Fan repair": "पंखा रिपेयर",
+  "Fan capacitor change": "पंखे का कैपेसिटर बदलना",
+  "Tube light fix": "ट्यूबलाइट ठीक करना",
+  "Bulb fitting": "बल्ब लगाना",
+  "Switch / socket": "स्विच / सॉकेट",
+  "MCB / fuse change": "MCB / फ्यूज़ बदलना",
+  "Short circuit repair": "शॉर्ट सर्किट मरम्मत",
+  "Water motor capacitor": "पानी की मोटर का कैपेसिटर",
   "Login or Sign up to continue": "जारी रखने के लिए लॉगिन या साइन अप करें",
   "or": "या",
   "Continue with Google": "Google से जारी रखें",
@@ -438,6 +450,20 @@ const VILLAGE_OPTIONS = [
   "Professor Colony", "Dev Nagar", "Barauni Refinery Township", "Lohia Nagar"
 ];
 
+// Common rural-household jobs shown on the home page. `match` is the exact
+// service name in the catalog; a card only appears if that service is
+// currently active, so renaming/deactivating a service never breaks the page.
+const POPULAR_SERVICES = [
+  { match: "Ceiling fan repair", icon: "🌀", label: "Fan repair" },
+  { match: "Capacitor Installation in Fan", icon: "🌀", label: "Fan capacitor change" },
+  { match: "Tube light repair or installation", icon: "💡", label: "Tube light fix" },
+  { match: "Bulb installation or replacement", icon: "💡", label: "Bulb fitting" },
+  { match: "New socket or switch installation", icon: "🔌", label: "Switch / socket" },
+  { match: "MCB or fuse replacement", icon: "⚡", label: "MCB / fuse change" },
+  { match: "Short Circuit Detection & Repair", icon: "⚠️", label: "Short circuit repair" },
+  { match: "Capacitor Installation in Motor", icon: "🚰", label: "Water motor capacitor" }
+];
+
 const BOOKING_DRAFT_KEY = "bijlimitra_booking_draft";
 function saveBookingDraft(d){ try{ localStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({...d, savedAt: Date.now()})); }catch(e){} }
 function readBookingDraft(){
@@ -614,6 +640,14 @@ async function savePhone() {
   }
 }
 
+const popularServices = useMemo(()=>POPULAR_SERVICES
+  .map(p=>({ ...p, service: services.find(s=>s.name===p.match) }))
+  .filter(p=>p.service), [services]);
+function pickPopular(s){
+  setCart(c=>({ ...c, [s.id]: Math.max(1, c[s.id]||0) }));
+  setOpenCategories(o=>({ ...o, [s.category || "Other Services"]: true }));
+  setTab("book"); setStep(2);
+}
 const servicesByCategory = useMemo(()=>{
   const groups = {};
   services.forEach(s=>{
@@ -787,6 +821,17 @@ if (!selectedItems.length) {
           <div className="ticketStubFoot">{t("Verified by Cashfree · non-refundable")}</div>
         </div>
       </section>
+      {popularServices.length>0 && <section className="popularSection">
+        <div className="sectionHead"><div><h2>{t("Popular services")}</h2><p>{t("Tap a service to start booking.")}</p></div></div>
+        <div className="popularGrid">
+          {popularServices.map(p=><button key={p.service.id} className="popularCard" onClick={()=>pickPopular(p.service)}>
+            <span className="popularIcon" aria-hidden="true">{p.icon}</span>
+            <b>{t(p.label)}</b>
+            <span className="popularPrice">{t("from")} {money(p.service.price)}</span>
+          </button>)}
+        </div>
+        <button className="secondary full" onClick={()=>{ setTab("book"); setStep(2); }}>{t("View all services")}</button>
+      </section>}
       <nav className="menuGrid">
         <button className="menuCard" onClick={()=>setTab("book")}>
           <ShoppingCart size={20}/>
