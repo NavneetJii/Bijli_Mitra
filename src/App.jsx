@@ -408,7 +408,9 @@ function PinBox({pins}) {
 
 const VILLAGE_OPTIONS = [
   "Bihat", "Urvarak Nagar Township", "Zeromile", "Pipra Dih", "Garhara",
-  "Nipania", "Teghra Bajaar", "Hazipur", "Pipra Devas", "Barauni Block"
+  "Nipania", "Teghra Bajaar", "Hazipur", "Pipra Devas", "Barauni Block",
+  "Sarvodaya Nagar", "Vishwanath Nagar", "Pokhariya", "Nirala Nagar",
+  "Professor Colony", "Dev Nagar", "Barauni Refinery Township", "Lohia Nagar"
 ];
 
 function LocationModal({userId,onClose,onSaved}) {
