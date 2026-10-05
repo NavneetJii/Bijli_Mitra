@@ -18,7 +18,7 @@ import {
   updateOwnPhone, adminUpdateElectricianPhone,
   recordSiteVisit, getVisitorStats,
   replaceCustomerService,
-  addReview, getMyReviews, getAdminReviews, setReviewStatus
+  addReview, getOrderReview, getMyReviews, getAdminReviews, setReviewStatus
 } from "./supabase";
 
 const ADVANCE = 51;
@@ -138,6 +138,11 @@ const HI = {
   "Reviews": "समीक्षाएँ",
   "Rate your experience": "अपना अनुभव रेट करें",
   "Write a review": "समीक्षा लिखें",
+  "Share your feedback": "अपनी राय दें",
+  "To review a specific job, open the completed order in My orders.": "किसी काम की समीक्षा के लिए 'मेरे ऑर्डर' में पूरा हुआ ऑर्डर खोलें।",
+  "Order": "ऑर्डर",
+  "Rate this service": "इस सेवा को रेट करें",
+  "Your review": "आपकी समीक्षा",
   "Your rating": "आपकी रेटिंग",
   "Electrician (optional)": "इलेक्ट्रीशियन (वैकल्पिक)",
   "General feedback about BijliMitra": "बिजलीमित्र के बारे में सामान्य राय",
@@ -484,16 +489,39 @@ function StarPicker({value,onChange,size=26}) {
   </div>;
 }
 
-function ReviewsTab({user,orders}) {
+function OrderReview({order}) {
+  const { t } = useLanguage();
+  const [review,setReview]=useState(undefined), [rating,setRating]=useState(0), [comment,setComment]=useState("");
+  const [busy,setBusy]=useState(false), [err,setErr]=useState("");
+  useEffect(()=>{ let on=true; setReview(undefined); setRating(0); setComment(""); setErr("");
+    getOrderReview(order.id).then(r=>{ if(on) setReview(r||null); }).catch(e=>{ if(on){ setReview(null); setErr(errorText(e)); } });
+    return ()=>{on=false}; },[order.id]);
+  async function submit(e){
+    e.preventDefault(); setErr("");
+    if(!rating){ setErr(t("Please select a star rating.")); return; }
+    setBusy(true);
+    try{ setReview(await addReview({orderId:order.id,electricianId:order.electrician_id,rating,comment})); }
+    catch(e){ setErr(errorText(e)); }
+    finally{ setBusy(false); }
+  }
+  if(review===undefined) return null;
+  return <div className="orderReview">
+    <h3>{review?t("Your review"):t("Rate this service")}</h3>
+    {review ? <div className="reviewItem"><div className="reviewTop"><StarPicker value={review.rating} size={18}/><small>{new Date(review.created_at).toLocaleDateString()}</small></div>{review.comment&&<p>{review.comment}</p>}</div>
+    : <form className="reviewForm" onSubmit={submit}>
+        <StarPicker value={rating} onChange={setRating}/>
+        <textarea rows={3} maxLength={1000} value={comment} onChange={e=>setComment(e.target.value)} placeholder={t("Tell us about your experience")}/>
+        {err&&<div className="fieldError">{err}</div>}
+        <button className="primary" disabled={busy}>{busy?t("Submitting..."):t("Submit review")}</button>
+      </form>}
+  </div>;
+}
+
+function ReviewsTab({user}) {
   const { t } = useLanguage();
   const [reviews,setReviews]=useState([]), [loading,setLoading]=useState(true);
-  const [rating,setRating]=useState(0), [comment,setComment]=useState(""), [electricianId,setElectricianId]=useState("");
+  const [rating,setRating]=useState(0), [comment,setComment]=useState("");
   const [busy,setBusy]=useState(false), [err,setErr]=useState(""), [done,setDone]=useState("");
-  const electricians = useMemo(()=>{
-    const m=new Map();
-    orders.forEach(o=>{ if(o.electrician_id && !m.has(o.electrician_id)) m.set(o.electrician_id, o.electrician?.full_name || "Electrician"); });
-    return [...m.entries()].map(([id,name])=>({id,name}));
-  },[orders]);
   useEffect(()=>{ let on=true; (async()=>{
     try{ const r=await getMyReviews(user.id); if(on) setReviews(r); }catch(e){ if(on) setErr(errorText(e)); }
     finally{ if(on) setLoading(false); }
@@ -503,23 +531,18 @@ function ReviewsTab({user,orders}) {
     if(!rating){ setErr(t("Please select a star rating.")); return; }
     setBusy(true);
     try{
-      const r=await addReview({electricianId,rating,comment});
-      setReviews([r,...reviews]); setRating(0); setComment(""); setElectricianId("");
+      const r=await addReview({rating,comment});
+      setReviews([r,...reviews]); setRating(0); setComment("");
       setDone(t("Thank you! Your review has been submitted."));
     }catch(e){ setErr(errorText(e)); }
     finally{ setBusy(false); }
   }
   return <div className="accountGrid">
     <div className="panel">
-      <h2>{t("Write a review")}</h2>
+      <h2>{t("Share your feedback")}</h2>
+      <p className="muted">{t("To review a specific job, open the completed order in My orders.")}</p>
       <form className="reviewForm" onSubmit={submit}>
         <label>{t("Your rating")}<StarPicker value={rating} onChange={setRating}/></label>
-        <label>{t("Electrician (optional)")}
-          <select value={electricianId} onChange={e=>setElectricianId(e.target.value)}>
-            <option value="">{t("General feedback about BijliMitra")}</option>
-            {electricians.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
-          </select>
-        </label>
         <label>{t("Your comments")}
           <textarea rows={4} maxLength={1000} value={comment} onChange={e=>setComment(e.target.value)} placeholder={t("Tell us about your experience")}/>
         </label>
@@ -533,7 +556,7 @@ function ReviewsTab({user,orders}) {
       {loading ? <p className="muted">{t("Loading...")}</p> : reviews.length===0 ? <p className="muted">{t("You have not written any reviews yet.")}</p> :
         reviews.map(r=><div className="reviewItem" key={r.id}>
           <div className="reviewTop"><StarPicker value={r.rating} size={16}/><small>{new Date(r.created_at).toLocaleDateString()}</small></div>
-          {r.electrician?.full_name && <div className="reviewFor">{t("For")}: {r.electrician.full_name}</div>}
+          {r.order_id && <div className="reviewFor">{t("Order")} #{r.order_id.slice(0,8).toUpperCase()}{r.electrician?.full_name?` · ${r.electrician.full_name}`:""}</div>}
           {r.comment && <p>{r.comment}</p>}
         </div>)}
     </div>
@@ -847,6 +870,7 @@ if (!selectedItems.length) {
         <PinBox pins={pins}/>
         <h3>{t("Services")}</h3>{items.map(i=><div className="miniRow" key={i.id}><span>{i.service_name} × {i.quantity}</span><b>{money(i.total_price ?? i.unit_price*i.quantity)}</b></div>)}
         <BillBox items={items.filter(i=>i.source==="customer").map(i=>({price:i.unit_price,quantity:i.quantity}))} technicianItems={items.filter(i=>i.source==="technician").map(i=>({price:i.unit_price,quantity:i.quantity}))} advance={selectedOrder.advance_amount} final={Boolean(selectedOrder.final_total)}/>
+        {selectedOrder.status==="completed" && <OrderReview order={selectedOrder}/>}
         {selectedOrder.status==="final_bill_pending" && <button className="primary full" disabled={busy} onClick={confirmBill}>{busy?t("Confirming…"):t("Confirm final bill")}</button>}
         {selectedOrder.status==="final_payment_pending" && <button className="primary full" disabled={busy} onClick={async()=>{
           setBusy(true); setMsg("");
@@ -858,7 +882,7 @@ if (!selectedItems.length) {
     </div>}
 
 
-    {tab==="reviews" && user && <ReviewsTab user={user} orders={orders}/>}
+    {tab==="reviews" && user && <ReviewsTab user={user}/>}
     {tab==="account" && <div className="accountGrid">
       <div className="panel"><h2>{t("My account")}</h2><div className="profileRows">
         <div><span>{t("Name")}</span><b>{profile?.full_name||"—"}</b></div>
@@ -1337,7 +1361,7 @@ function Admin({user}) {
       </div>
       {reviews.filter(r=>reviewFilter==="all"||r.status===reviewFilter).map(r=><div className="reviewItem" key={r.id}>
         <div className="reviewTop"><StarPicker value={r.rating} size={16}/><small>{new Date(r.created_at).toLocaleString()}</small></div>
-        <div className="reviewFor">{r.customer?.full_name||"Customer"}{r.electrician?.full_name?` → ${r.electrician.full_name}`:" · General feedback"}</div>
+        <div className="reviewFor">{r.customer?.full_name||"Customer"}{r.order_id?` · Order #${r.order_id.slice(0,8).toUpperCase()}`:" · General feedback"}{r.electrician?.full_name?` → ${r.electrician.full_name}`:""}</div>
         {r.comment && <p>{r.comment}</p>}
         <div className="reviewActions">
           <span className={`reviewStatus ${r.status}`}>{r.status}</span>
