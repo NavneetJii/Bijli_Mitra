@@ -668,3 +668,10 @@ export async function setReviewStatus(reviewId, status) {
   const { error } = await supabase.from("reviews").update({ status }).eq("id", reviewId);
   if (error) throw error;
 }
+
+// Start downloading the service catalog the moment the app's code loads,
+// in parallel with the login check, instead of waiting for the home page
+// to mount first. The home page's "Popular services" reads this.
+export const servicesPrefetch = supabaseConfigured
+  ? getServices().catch(() => null)
+  : Promise.resolve(null);

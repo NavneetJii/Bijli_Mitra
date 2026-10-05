@@ -767,3 +767,6 @@ tr.clickableRow:hover td{ background: var(--paper-raised, #f7f6ef); }
 .popularIcon{font-size:26px;line-height:1}
 .popularCard b{font-size:15px}
 .popularPrice{font-size:13px;opacity:.75}
+.popularLoading{cursor:default;opacity:.7}
+.popularLoading .popularPrice{display:block;width:60%;height:12px;border-radius:6px;background:linear-gradient(90deg,rgba(128,140,160,.15),rgba(128,140,160,.35),rgba(128,140,160,.15));background-size:200% 100%;animation:popularShimmer 1.2s linear infinite}
+@keyframes popularShimmer{from{background-position:200% 0}to{background-position:-200% 0}}

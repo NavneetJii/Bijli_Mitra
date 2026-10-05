@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import {
   supabase, supabaseConfigured, currentUser, signIn, signUp, signOut, signInWithGoogle,
-  getProfile, getServices, getLocations, addLocation, getCustomerOrders,
+  getProfile, getServices, servicesPrefetch, getLocations, addLocation, getCustomerOrders,
   getOrderItems, getOrderHistory, getOrderPins,
   confirmFinalBill, getPendingOrders, getElectricianProfile,
   getAssignedOrders, acceptOrder, startOrderWork, addTechnicianService,
@@ -464,6 +464,15 @@ const POPULAR_SERVICES = [
   { match: "Capacitor Installation in Motor", icon: "🚰", label: "Water motor capacitor" }
 ];
 
+const SERVICES_CACHE_KEY = "bijlimitra_services_cache_v1";
+function readServicesCache(){
+  try{
+    const c = JSON.parse(localStorage.getItem(SERVICES_CACHE_KEY) || "null");
+    return c && Array.isArray(c.list) && c.list.length ? c.list : null;
+  }catch(e){ return null; }
+}
+function writeServicesCache(list){ try{ localStorage.setItem(SERVICES_CACHE_KEY, JSON.stringify({list, at: Date.now()})); }catch(e){} }
+
 const BOOKING_DRAFT_KEY = "bijlimitra_booking_draft";
 function saveBookingDraft(d){ try{ localStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({...d, savedAt: Date.now()})); }catch(e){} }
 function readBookingDraft(){
@@ -605,7 +614,8 @@ function ReviewsTab({user}) {
 
 function Customer({user, profile, onRequireAuth}) {
   const { t } = useLanguage();
-  const [services,setServices]=useState(fallbackServices), [locations,setLocations]=useState([]), [orders,setOrders]=useState([]);
+  const [services,setServices]=useState(()=>readServicesCache()||fallbackServices), [locations,setLocations]=useState([]), [orders,setOrders]=useState([]);
+  const [servicesLive,setServicesLive]=useState(()=>Boolean(readServicesCache()));
   const [cart,setCart]=useState({}), [locationId,setLocationId]=useState(""), [tab,setTab]=useState("home");
   const [step,setStep]=useState(1), [agreed,setAgreed]=useState(false);
   const [selectedOrder,setSelectedOrder]=useState(null), [items,setItems]=useState([]), [history,setHistory]=useState([]);
@@ -658,12 +668,27 @@ const servicesByCategory = useMemo(()=>{
   return groups;
 }, [services]);
 
+  // Services don't depend on who is logged in, so they load once, right
+  // away (using the download already started at app load), rather than
+  // waiting behind login/profile/orders. Cached copy shows instantly on
+  // repeat visits and is refreshed in the background.
+  useEffect(()=>{
+    let on=true;
+    (async()=>{
+      try{
+        if(!supabaseConfigured) return;
+        const list = (await servicesPrefetch) || (await getServices());
+        if(on && list && list.length){ setServices(list); setServicesLive(true); writeServicesCache(list); }
+      }catch(e){ console.error("services load failed", e); }
+    })();
+    return ()=>{on=false};
+  },[]);
+
  async function load() {
   try {
 
     // Services can be viewed without login
     if (supabaseConfigured) {
-      setServices(await getServices());
     }
 
     // These require the customer to be logged in
@@ -821,14 +846,20 @@ if (!selectedItems.length) {
           <div className="ticketStubFoot">{t("Verified by Cashfree · non-refundable")}</div>
         </div>
       </section>
-      {popularServices.length>0 && <section className="popularSection">
+      {(popularServices.length>0 || !servicesLive) && <section className="popularSection">
         <div className="sectionHead"><div><h2>{t("Popular services")}</h2><p>{t("Tap a service to start booking.")}</p></div></div>
         <div className="popularGrid">
-          {popularServices.map(p=><button key={p.service.id} className="popularCard" onClick={()=>pickPopular(p.service)}>
-            <span className="popularIcon" aria-hidden="true">{p.icon}</span>
-            <b>{t(p.label)}</b>
-            <span className="popularPrice">{t("from")} {money(p.service.price)}</span>
-          </button>)}
+          {popularServices.length>0
+            ? popularServices.map(p=><button key={p.service.id} className="popularCard" onClick={()=>pickPopular(p.service)}>
+                <span className="popularIcon" aria-hidden="true">{p.icon}</span>
+                <b>{t(p.label)}</b>
+                <span className="popularPrice">{t("from")} {money(p.service.price)}</span>
+              </button>)
+            : POPULAR_SERVICES.map(p=><div key={p.match} className="popularCard popularLoading" aria-busy="true">
+                <span className="popularIcon" aria-hidden="true">{p.icon}</span>
+                <b>{t(p.label)}</b>
+                <span className="popularPrice">&nbsp;</span>
+              </div>)}
         </div>
         <button className="secondary full" onClick={()=>{ setTab("book"); setStep(2); }}>{t("View all services")}</button>
       </section>}
