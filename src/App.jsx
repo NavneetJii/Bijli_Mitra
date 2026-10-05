@@ -1378,7 +1378,7 @@ function Footer() {
         <span>·</span>
         <span>Bihat, Ward No. 11, Mandir Marg, Barauni, Begusarai, Bihar — 851115</span>
         <span>·</span>
-        <a href="tel:+917338795810">+91 73387 95810</a>
+        <a href="tel:+919189392121">+91 91893 92121</a>
         <span>·</span>
         <a href="/privacy.html">{t("Privacy Policy")}</a>
       </div>
