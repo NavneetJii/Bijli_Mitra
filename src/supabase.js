@@ -619,16 +619,27 @@ export async function getAdminOrdersByDate(dateStr) {
   return data ?? [];
 }
 // ---------- Reviews ----------
-export async function addReview({ electricianId, rating, comment }) {
+export async function addReview({ orderId, electricianId, rating, comment }) {
   const { data, error } = await supabase
     .from("reviews")
     .insert({
+      order_id: orderId || null,
       electrician_id: electricianId || null,
       rating,
       comment: comment?.trim() || null
     })
     .select("*, electrician:profiles!reviews_electrician_id_fkey(full_name)")
     .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getOrderReview(orderId) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("*")
+    .eq("order_id", orderId)
+    .maybeSingle();
   if (error) throw error;
   return data;
 }

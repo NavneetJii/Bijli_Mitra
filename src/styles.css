@@ -754,3 +754,4 @@ tr.clickableRow:hover td{ background: var(--paper-raised, #f7f6ef); }
 .reviewStatus.approved{background:rgba(46,160,90,.2);color:#3ec27a}
 .reviewStatus.pending{background:rgba(245,179,1,.2);color:#f5b301}
 .reviewStatus.hidden{background:rgba(220,80,80,.2);color:#e26d6d}
+.orderReview{margin-top:18px;padding-top:12px;border-top:1px solid rgba(128,140,160,.25)}
