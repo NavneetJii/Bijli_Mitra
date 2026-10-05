@@ -122,6 +122,9 @@ const HI = {
   "Cancel": "रद्द करें",
   "Edit": "संपादित करें",
   "Not added": "जोड़ा नहीं गया",
+  "Add the address where the electrician should visit.": "वह पता जोड़ें जहाँ इलेक्ट्रीशियन को आना है।",
+  "Change address": "पता बदलें",
+  "Please log in or create an account to pay the ₹51 visiting charge and confirm your booking. Your selected services and address will be kept.": "₹51 विज़िटिंग चार्ज देने और बुकिंग पक्की करने के लिए कृपया लॉगिन करें या खाता बनाएँ। आपकी चुनी हुई सेवाएँ और पता सुरक्षित रहेंगे।",
   "Login or Sign up to continue": "जारी रखने के लिए लॉगिन या साइन अप करें",
   "or": "या",
   "Continue with Google": "Google से जारी रखें",
@@ -435,6 +438,17 @@ const VILLAGE_OPTIONS = [
   "Professor Colony", "Dev Nagar", "Barauni Refinery Township", "Lohia Nagar"
 ];
 
+const BOOKING_DRAFT_KEY = "bijlimitra_booking_draft";
+function saveBookingDraft(d){ try{ localStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({...d, savedAt: Date.now()})); }catch(e){} }
+function readBookingDraft(){
+  try{
+    const d = JSON.parse(localStorage.getItem(BOOKING_DRAFT_KEY) || "null");
+    if(!d || Date.now() - (d.savedAt||0) > 24*60*60*1000) return null;
+    return d;
+  }catch(e){ return null; }
+}
+function clearBookingDraft(){ try{ localStorage.removeItem(BOOKING_DRAFT_KEY); }catch(e){} }
+
 function LocationModal({userId,onClose,onSaved}) {
   const { t } = useLanguage();
   const [f,setF]=useState({landmark:"",city:"",pincode:"",latitude:"",longitude:""});
@@ -459,7 +473,7 @@ function LocationModal({userId,onClose,onSaved}) {
         latitude: f.latitude?Number(f.latitude):null,
         longitude: f.longitude?Number(f.longitude):null
       };
-      const r=await addLocation(userId,x);
+      const r = userId ? await addLocation(userId,x) : { ...x, id: "draft" };
       onSaved(r);
       onClose();
     }catch(e){setErr(errorText(e))}finally{setBusy(false)}
@@ -575,6 +589,7 @@ const [busy,setBusy]=useState(false);
 const [msg,setMsg]=useState("");
 const [bookingError,setBookingError]=useState("");
 const [showLoginPrompt,setShowLoginPrompt]=useState(false);
+const [draftLoc,setDraftLoc]=useState(null);
 const [openCategories,setOpenCategories]=useState({});
 const [editingPhone,setEditingPhone]=useState(false);
 const [phoneDraft,setPhoneDraft]=useState(profile?.phone||"");
@@ -619,8 +634,30 @@ const servicesByCategory = useMemo(()=>{
 
     // These require the customer to be logged in
     if (user && supabaseConfigured) {
-      setLocations(await getLocations(user.id));
+      const locs = await getLocations(user.id);
+      setLocations(locs);
       setOrders(await getCustomerOrders(user.id));
+
+      // A guest who reached the payment step and was asked to log in /
+      // sign up: put their cart and address back so they land on the
+      // review step, ready to pay.
+      const draft = readBookingDraft();
+      if (draft) {
+        clearBookingDraft();
+        try {
+          if (draft.cart && Object.keys(draft.cart).length) setCart(draft.cart);
+          if (draft.location) {
+            const L = draft.location;
+            let loc = locs.find(l=>l.landmark===L.landmark && l.city===L.city && String(l.pincode)===String(L.pincode));
+            if (!loc) { loc = await addLocation(user.id, L); setLocations([loc, ...locs]); }
+            setLocationId(loc.id);
+          }
+          setDraftLoc(null);
+          setAgreed(false);
+          setStep(4);
+          setTab("book");
+        } catch (e) { setMsg(errorText(e)); }
+      }
     }
 
   } catch (e) {
@@ -660,8 +697,10 @@ const servicesByCategory = useMemo(()=>{
   async function placeOrder(){
     console.log("PLACE ORDER FUNCTION CLICKED");
     if (!user) {
-  setMsg("Please Login or Sign Up to continue with your booking and payment.");
-  onRequireAuth("login");
+  if (!draftLoc) { alert("Please add a service address."); return; }
+  if (!selectedItems.length) { alert("Please select at least 1 service."); return; }
+  saveBookingDraft({ cart, location: draftLoc });
+  setShowLoginPrompt(true);
   return;
 }
     if (!locationId && !selectedItems.length) {
@@ -749,7 +788,7 @@ if (!selectedItems.length) {
         </div>
       </section>
       <nav className="menuGrid">
-        <button className="menuCard" onClick={()=>{ if(!user){ setShowLoginPrompt(true); } else { setTab("book"); } }}>
+        <button className="menuCard" onClick={()=>setTab("book")}>
           <ShoppingCart size={20}/>
           <div><b>{t("Book service")}</b><span>{t("Schedule a certified electrician")}</span></div>
           <ChevronRight size={18}/>
@@ -815,7 +854,16 @@ if (!selectedItems.length) {
 
       {step===3 && <div className="panel">
         <div className="sectionHead"><div><h2>{t("Choose service location")}</h2><p>{t("Pick where the electrician should visit.")}</p></div></div>
-        {!user && <p className="muted">{t("Login or Sign up to add and select a service location.")}</p>}
+        {!user && <>
+          {draftLoc ? <div className="locationPickList">
+            <button className="locationPick selected" type="button">
+              <MapPin size={17}/>
+              <div><b>{draftLoc.landmark}</b><span>{draftLoc.city}, {draftLoc.district}, {draftLoc.state} — {draftLoc.pincode}</span></div>
+              <ShieldCheck size={17}/>
+            </button>
+          </div> : <p className="muted">{t("Add the address where the electrician should visit.")}</p>}
+          <button className="secondary full" onClick={()=>setLocModal(true)}><MapPin size={16}/> {draftLoc?t("Change address"):t("Add location")}</button>
+        </>}
         {user && <>
           {locations.length ? <div className="locationPickList">
             {locations.map(l=><button key={l.id} className={`locationPick ${locationId===l.id?"selected":""}`} onClick={()=>setLocationId(l.id)}>
@@ -828,7 +876,7 @@ if (!selectedItems.length) {
         </>}
         <div className="wizardNav">
           <button className="secondary" onClick={()=>setStep(2)}><ChevronLeft size={16}/> {t("Back")}</button>
-          <button className="primary" disabled={!user||!locationId} onClick={()=>setStep(4)}>{t("Confirm location")}</button>
+          <button className="primary" disabled={user?!locationId:!draftLoc} onClick={()=>setStep(4)}>{t("Confirm location")}</button>
         </div>
       </div>}
 
@@ -913,11 +961,11 @@ if (!selectedItems.length) {
       </div></div>
       <div className="panel"><div className="sectionHead"><h2>{t("Saved locations")}</h2><button className="secondary" onClick={()=>setLocModal(true)}><Plus size={16}/> {t("Add")}</button></div>{locations.map(l=><div className="locationRow" key={l.id}><MapPin size={17}/><div><b>{l.landmark}</b><span>{l.city}, {l.district}, {l.state} — {l.pincode}{l.location_url && <> · <a href={l.location_url} target="_blank" rel="noreferrer">{t("View shared location")}</a></>}</span></div></div>)}{!locations.length&&<p className="muted">{t("No saved locations.")}</p>}</div>
     </div>}
-    {locModal&&<LocationModal userId={user.id} onClose={()=>setLocModal(false)} onSaved={x=>{setLocations([x,...locations]);setLocationId(x.id)}}/>}
+    {locModal&&<LocationModal userId={user?.id} onClose={()=>setLocModal(false)} onSaved={x=>{ if(user){setLocations([x,...locations]);setLocationId(x.id)} else { setDraftLoc(x); } }}/>}
     {showLoginPrompt && <div className="modalBackdrop" onClick={()=>setShowLoginPrompt(false)}>
       <div className="modal loginPromptModal" onClick={e=>e.stopPropagation()}>
         <div className="modalHead"><h2>{t("Login or Sign up to continue")}</h2><button className="iconBtn" onClick={()=>setShowLoginPrompt(false)}><X/></button></div>
-        <p className="muted">{t("Please log in or create an account to book a service.")}</p>
+        <p className="muted">{t("Please log in or create an account to pay the ₹51 visiting charge and confirm your booking. Your selected services and address will be kept.")}</p>
         <div className="loginPromptActions">
           <button className="secondary full" onClick={()=>{ setShowLoginPrompt(false); onRequireAuth("login"); }}>{t("Login")}</button>
           <button className="primary full" onClick={()=>{ setShowLoginPrompt(false); onRequireAuth("signup"); }}>{t("Sign Up")}</button>
