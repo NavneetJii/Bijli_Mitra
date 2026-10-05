@@ -136,12 +136,16 @@ export async function recordSiteVisit() {
   for (let i = 0; i < attempts.length; i++) {
     if (attempts[i]) await sleep(attempts[i]);
     try {
-      const { error } = await supabase
-        .from("site_visits")
-        .upsert(
-          { visitor_id: visitorId, user_agent: navigator.userAgent },
-          { onConflict: "visitor_id,visit_date", ignoreDuplicates: true }
-        );
+      // Goes through the record_site_visit database function rather than
+      // writing to the table directly. A direct upsert was rejected by
+      // row-level security for everyone except admin (the only role with a
+      // SELECT policy on site_visits), so customers and logged-out visitors
+      // were never counted. The function runs with its own privileges and
+      // still keeps one row per visitor per day.
+      const { error } = await supabase.rpc("record_site_visit", {
+        p_visitor_id: visitorId,
+        p_user_agent: navigator.userAgent
+      });
       if (error) throw error;
       return;
     } catch (e) {
