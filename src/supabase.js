@@ -618,3 +618,42 @@ export async function getAdminOrdersByDate(dateStr) {
   if (error) throw error;
   return data ?? [];
 }
+// ---------- Reviews ----------
+export async function addReview({ electricianId, rating, comment }) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .insert({
+      electrician_id: electricianId || null,
+      rating,
+      comment: comment?.trim() || null
+    })
+    .select("*, electrician:profiles!reviews_electrician_id_fkey(full_name)")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getMyReviews(userId) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("*, electrician:profiles!reviews_electrician_id_fkey(full_name)")
+    .eq("customer_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getAdminReviews() {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("*, customer:profiles!reviews_customer_id_fkey(full_name), electrician:profiles!reviews_electrician_id_fkey(full_name)")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function setReviewStatus(reviewId, status) {
+  const { error } = await supabase.from("reviews").update({ status }).eq("id", reviewId);
+  if (error) throw error;
+}

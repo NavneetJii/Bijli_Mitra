@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useContext, createContext } from "
 import {
   Zap, MapPin, ShoppingCart, User, LogOut, ClipboardList,
   Plus, Minus, CheckCircle2, Clock3, Wrench, CreditCard,
-  ShieldCheck, ChevronRight, ChevronLeft, ChevronDown, X, RefreshCw, Wallet, Eye, EyeOff, Lock, Pencil, Check
+  ShieldCheck, ChevronRight, ChevronLeft, ChevronDown, X, RefreshCw, Wallet, Eye, EyeOff, Lock, Pencil, Check, Star
 } from "lucide-react";
 import {
   supabase, supabaseConfigured, currentUser, signIn, signUp, signOut, signInWithGoogle,
@@ -17,7 +17,8 @@ import {
   requestPasswordReset, updatePassword, getOrderById, createElectrician,
   updateOwnPhone, adminUpdateElectricianPhone,
   recordSiteVisit, getVisitorStats,
-  replaceCustomerService
+  replaceCustomerService,
+  addReview, getMyReviews, getAdminReviews, setReviewStatus
 } from "./supabase";
 
 const ADVANCE = 51;
@@ -134,6 +135,22 @@ const HI = {
   "Continue to": "आगे बढ़ें",
   "visiting charge payment": "विज़िटिंग चार्ज भुगतान की ओर",
   "Pending": "लंबित",
+  "Reviews": "समीक्षाएँ",
+  "Rate your experience": "अपना अनुभव रेट करें",
+  "Write a review": "समीक्षा लिखें",
+  "Your rating": "आपकी रेटिंग",
+  "Electrician (optional)": "इलेक्ट्रीशियन (वैकल्पिक)",
+  "General feedback about BijliMitra": "बिजलीमित्र के बारे में सामान्य राय",
+  "Your comments": "आपकी टिप्पणी",
+  "Tell us about your experience": "अपना अनुभव हमें बताएँ",
+  "Submit review": "समीक्षा जमा करें",
+  "Submitting...": "जमा हो रहा है...",
+  "My reviews": "मेरी समीक्षाएँ",
+  "Loading...": "लोड हो रहा है...",
+  "You have not written any reviews yet.": "आपने अभी तक कोई समीक्षा नहीं लिखी है।",
+  "For": "के लिए",
+  "Please select a star rating.": "कृपया स्टार रेटिंग चुनें।",
+  "Thank you! Your review has been submitted.": "धन्यवाद! आपकी समीक्षा जमा हो गई है।",
   "Assigned": "सौंपा गया",
   "Work In Progress": "कार्य जारी है",
   "Final Bill Pending": "अंतिम बिल लंबित",
@@ -459,6 +476,70 @@ function LocationModal({userId,onClose,onSaved}) {
   </div></div>
 }
 
+function StarPicker({value,onChange,size=26}) {
+  return <div className="starRow" role="radiogroup" aria-label="Rating">
+    {[1,2,3,4,5].map(n=><button type="button" key={n} className="starBtn" role="radio" aria-checked={value===n} aria-label={`${n} star`} onClick={()=>onChange&&onChange(n)} disabled={!onChange}>
+      <Star size={size} className={n<=value?"starOn":"starOff"} fill={n<=value?"currentColor":"none"}/>
+    </button>)}
+  </div>;
+}
+
+function ReviewsTab({user,orders}) {
+  const { t } = useLanguage();
+  const [reviews,setReviews]=useState([]), [loading,setLoading]=useState(true);
+  const [rating,setRating]=useState(0), [comment,setComment]=useState(""), [electricianId,setElectricianId]=useState("");
+  const [busy,setBusy]=useState(false), [err,setErr]=useState(""), [done,setDone]=useState("");
+  const electricians = useMemo(()=>{
+    const m=new Map();
+    orders.forEach(o=>{ if(o.electrician_id && !m.has(o.electrician_id)) m.set(o.electrician_id, o.electrician?.full_name || "Electrician"); });
+    return [...m.entries()].map(([id,name])=>({id,name}));
+  },[orders]);
+  useEffect(()=>{ let on=true; (async()=>{
+    try{ const r=await getMyReviews(user.id); if(on) setReviews(r); }catch(e){ if(on) setErr(errorText(e)); }
+    finally{ if(on) setLoading(false); }
+  })(); return ()=>{on=false}; },[user.id]);
+  async function submit(e){
+    e.preventDefault(); setErr(""); setDone("");
+    if(!rating){ setErr(t("Please select a star rating.")); return; }
+    setBusy(true);
+    try{
+      const r=await addReview({electricianId,rating,comment});
+      setReviews([r,...reviews]); setRating(0); setComment(""); setElectricianId("");
+      setDone(t("Thank you! Your review has been submitted."));
+    }catch(e){ setErr(errorText(e)); }
+    finally{ setBusy(false); }
+  }
+  return <div className="accountGrid">
+    <div className="panel">
+      <h2>{t("Write a review")}</h2>
+      <form className="reviewForm" onSubmit={submit}>
+        <label>{t("Your rating")}<StarPicker value={rating} onChange={setRating}/></label>
+        <label>{t("Electrician (optional)")}
+          <select value={electricianId} onChange={e=>setElectricianId(e.target.value)}>
+            <option value="">{t("General feedback about BijliMitra")}</option>
+            {electricians.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </label>
+        <label>{t("Your comments")}
+          <textarea rows={4} maxLength={1000} value={comment} onChange={e=>setComment(e.target.value)} placeholder={t("Tell us about your experience")}/>
+        </label>
+        {err&&<div className="fieldError">{err}</div>}
+        {done&&<div className="notice">{done}</div>}
+        <button className="primary" disabled={busy}>{busy?t("Submitting..."):t("Submit review")}</button>
+      </form>
+    </div>
+    <div className="panel">
+      <h2>{t("My reviews")}</h2>
+      {loading ? <p className="muted">{t("Loading...")}</p> : reviews.length===0 ? <p className="muted">{t("You have not written any reviews yet.")}</p> :
+        reviews.map(r=><div className="reviewItem" key={r.id}>
+          <div className="reviewTop"><StarPicker value={r.rating} size={16}/><small>{new Date(r.created_at).toLocaleDateString()}</small></div>
+          {r.electrician?.full_name && <div className="reviewFor">{t("For")}: {r.electrician.full_name}</div>}
+          {r.comment && <p>{r.comment}</p>}
+        </div>)}
+    </div>
+  </div>;
+}
+
 function Customer({user, profile, onRequireAuth}) {
   const { t } = useLanguage();
   const [services,setServices]=useState(fallbackServices), [locations,setLocations]=useState([]), [orders,setOrders]=useState([]);
@@ -660,10 +741,15 @@ if (!selectedItems.length) {
           <div><b>{t("Account")}</b><span>{t("Profile and saved locations")}</span></div>
           <ChevronRight size={18}/>
         </button>}
+        {user && <button className="menuCard" onClick={()=>setTab("reviews")}>
+          <Star size={20}/>
+          <div><b>{t("Reviews")}</b><span>{t("Rate your experience")}</span></div>
+          <ChevronRight size={18}/>
+        </button>}
       </nav>
     </> : <div className="pageHeader">
       <button className="iconBtn" onClick={()=>setTab("home")}><ChevronLeft size={18}/></button>
-      <h2>{tab==="book"?t("Book service"):tab==="orders"?t("My orders"):t("Account")}</h2>
+      <h2>{tab==="book"?t("Book service"):tab==="orders"?t("My orders"):tab==="reviews"?t("Reviews"):t("Account")}</h2>
     </div>}
     {msg&&<div className="notice">{msg}</div>}
 
@@ -772,6 +858,7 @@ if (!selectedItems.length) {
     </div>}
 
 
+    {tab==="reviews" && user && <ReviewsTab user={user} orders={orders}/>}
     {tab==="account" && <div className="accountGrid">
       <div className="panel"><h2>{t("My account")}</h2><div className="profileRows">
         <div><span>{t("Name")}</span><b>{profile?.full_name||"—"}</b></div>
@@ -1024,6 +1111,7 @@ function Admin({user}) {
   const [electricianPhoneBusy,setElectricianPhoneBusy]=useState(false);
   const [electricianPhoneErr,setElectricianPhoneErr]=useState("");
   const [visitorStats,setVisitorStats]=useState([]);
+  const [reviews,setReviews]=useState([]), [reviewFilter,setReviewFilter]=useState("all"), [reviewBusy,setReviewBusy]=useState(null);
   const [visitorDateFilter,setVisitorDateFilter]=useState("");
 
   async function saveElectricianPhone(electricianId){
@@ -1079,6 +1167,7 @@ function Admin({user}) {
     try{
       const [dp, el, or, po, vs] = await Promise.all([getDailyPayments(30), getAdminElectricians(), getAdminOrders(100), getAdminPendingOrders(), getVisitorStats(60)]);
       setDailyPayments(dp); setElectricians(el); setOrders(or); setPendingOrders(po); setVisitorStats(vs);
+      try{ setReviews(await getAdminReviews()); }catch(e){ console.error('reviews load failed', e); }
     }catch(e){ setMsg(errorText(e)); }
     finally{ setLoading(false); }
   }
@@ -1138,6 +1227,12 @@ function Admin({user}) {
   // The table shows only the 3 most recent days by default; picking a date
   // on the calendar shows just that day instead (days are keyed as IST
   // YYYY-MM-DD strings, same as the date input's value).
+  async function changeReviewStatus(id,status){
+    setReviewBusy(id);
+    try{ await setReviewStatus(id,status); setReviews(rs=>rs.map(r=>r.id===id?{...r,status}:r)); }
+    catch(e){ setMsg(errorText(e)); }
+    finally{ setReviewBusy(null); }
+  }
   const displayedVisitorRows = visitorDateFilter
     ? visitorStats.filter(v=>v.day===visitorDateFilter)
     : visitorStats.slice(0,3);
@@ -1231,6 +1326,26 @@ function Admin({user}) {
         </div>)}
         {!electricians.length && <p className="muted">No electricians yet.</p>}
       </div>
+    </div>
+
+    <div className="panel adminSection">
+      <div className="sectionHead">
+        <div><h2>Customer reviews</h2><p>{reviews.length} review(s){reviews.length?` · average ${(reviews.reduce((a,r)=>a+r.rating,0)/reviews.length).toFixed(1)}★`:""}. Visible only to you and the customer who wrote them.</p></div>
+        <select value={reviewFilter} onChange={e=>setReviewFilter(e.target.value)}>
+          <option value="all">All</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="hidden">Hidden</option>
+        </select>
+      </div>
+      {reviews.filter(r=>reviewFilter==="all"||r.status===reviewFilter).map(r=><div className="reviewItem" key={r.id}>
+        <div className="reviewTop"><StarPicker value={r.rating} size={16}/><small>{new Date(r.created_at).toLocaleString()}</small></div>
+        <div className="reviewFor">{r.customer?.full_name||"Customer"}{r.electrician?.full_name?` → ${r.electrician.full_name}`:" · General feedback"}</div>
+        {r.comment && <p>{r.comment}</p>}
+        <div className="reviewActions">
+          <span className={`reviewStatus ${r.status}`}>{r.status}</span>
+          {r.status!=="approved" && <button className="secondary" disabled={reviewBusy===r.id} onClick={()=>changeReviewStatus(r.id,"approved")}>Approve</button>}
+          {r.status!=="hidden" && <button className="secondary" disabled={reviewBusy===r.id} onClick={()=>changeReviewStatus(r.id,"hidden")}>Hide</button>}
+        </div>
+      </div>)}
+      {!reviews.filter(r=>reviewFilter==="all"||r.status===reviewFilter).length && <p className="muted">No reviews to show.</p>}
     </div>
 
     <div className="panel adminSection">
