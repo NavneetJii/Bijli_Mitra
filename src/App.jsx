@@ -1022,6 +1022,7 @@ function Admin({user}) {
   const [electricianPhoneBusy,setElectricianPhoneBusy]=useState(false);
   const [electricianPhoneErr,setElectricianPhoneErr]=useState("");
   const [visitorStats,setVisitorStats]=useState([]);
+  const [visitorDateFilter,setVisitorDateFilter]=useState("");
 
   async function saveElectricianPhone(electricianId){
     const trimmed = electricianPhoneDraft.trim();
@@ -1074,7 +1075,7 @@ function Admin({user}) {
 
   async function load(){
     try{
-      const [dp, el, or, po, vs] = await Promise.all([getDailyPayments(30), getAdminElectricians(), getAdminOrders(100), getAdminPendingOrders(), getVisitorStats(30)]);
+      const [dp, el, or, po, vs] = await Promise.all([getDailyPayments(30), getAdminElectricians(), getAdminOrders(100), getAdminPendingOrders(), getVisitorStats(60)]);
       setDailyPayments(dp); setElectricians(el); setOrders(or); setPendingOrders(po); setVisitorStats(vs);
     }catch(e){ setMsg(errorText(e)); }
     finally{ setLoading(false); }
@@ -1132,13 +1133,25 @@ function Admin({user}) {
   const todayVisitors = visitorStats.find(v=>v.day===todayStr)?.visitor_count || 0;
   const yesterdayVisitors = visitorStats.find(v=>v.day===yesterdayStr)?.visitor_count || 0;
   const last7DaysVisitors = visitorStats.filter(v=>v.day>=sevenDaysAgoStr).reduce((a,v)=>a+Number(v.visitor_count||0),0);
+  // The table shows only the 3 most recent days by default; picking a date
+  // on the calendar shows just that day instead (days are keyed as IST
+  // YYYY-MM-DD strings, same as the date input's value).
+  const displayedVisitorRows = visitorDateFilter
+    ? visitorStats.filter(v=>v.day===visitorDateFilter)
+    : visitorStats.slice(0,3);
 
   return <div className="page">
     <section className="dashHeader"><div><h1>Admin dashboard</h1><p>Payments, electrician status, and recent orders across the platform.</p></div></section>
     {msg && <div className="notice">{msg}</div>}
 
     <div className="panel adminSection">
-      <div className="sectionHead"><div><h2>Website visitors</h2><p>Unique visitors per day, site-wide — counted once per browser per day, whether or not they log in.</p></div></div>
+      <div className="sectionHead">
+        <div><h2>Website visitors</h2><p>Unique visitors per day, site-wide — counted once per browser per day, whether or not they log in.</p></div>
+        <div className="dateFilter">
+          <input type="date" max={todayStr} value={visitorDateFilter} onChange={e=>setVisitorDateFilter(e.target.value)}/>
+          {visitorDateFilter && <button className="iconBtn" title="Clear date filter" onClick={()=>setVisitorDateFilter("")}><X size={16}/></button>}
+        </div>
+      </div>
       <div className="visitorStatsRow">
         <div className="visitorStatBox highlight"><span>Today</span><b>{todayVisitors}</b></div>
         <div className="visitorStatBox"><span>Yesterday</span><b>{yesterdayVisitors}</b></div>
@@ -1148,14 +1161,15 @@ function Admin({user}) {
         <table className="adminTable">
           <thead><tr><th>Date</th><th>Unique visitors</th></tr></thead>
           <tbody>
-            {visitorStats.map(v=><tr key={v.day}>
+            {displayedVisitorRows.map(v=><tr key={v.day}>
               <td>{new Date(`${v.day}T00:00:00+05:30`).toLocaleDateString()}</td>
               <td>{v.visitor_count}</td>
             </tr>)}
-            {!visitorStats.length && <tr><td colSpan="2" className="muted">No visits recorded yet.</td></tr>}
+            {!displayedVisitorRows.length && <tr><td colSpan="2" className="muted">{visitorDateFilter ? "No visits recorded on this date." : "No visits recorded yet."}</td></tr>}
           </tbody>
         </table>
       </div>
+      {!visitorDateFilter && visitorStats.length>3 && <p className="muted tableHint">Showing the 3 most recent days — use the calendar above to see any other date.</p>}
     </div>
 
     <div className="adminGrid">
