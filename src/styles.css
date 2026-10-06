@@ -780,7 +780,7 @@ tr.clickableRow:hover td{ background: var(--paper-raised, #f7f6ef); }
 /* Popular services (home page) */
 .popularSection{margin:10px 0 16px}
 .popularGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:12px 0}
-@media(min-width:720px){.popularGrid{grid-template-columns:repeat(4,1fr)}}
+@media(min-width:720px){.popularGrid{grid-template-columns:repeat(3,1fr)}}
 .popularCard{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:14px;border-radius:12px;border:1px solid rgba(128,140,160,.3);background:rgba(128,140,160,.08);color:inherit;cursor:pointer;font:inherit}
 .popularCard:hover{border-color:#f5b301}
 .popularIcon{font-size:26px;line-height:1}
@@ -796,7 +796,7 @@ tr.clickableRow:hover td{ background: var(--paper-raised, #f7f6ef); }
 .popularCard > b{margin-top:10px}
 .popularCard > .popularPrice{margin:2px 0 12px}
 .popularIcon{display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:4/3;background:#fff;font-size:44px}
-.popularPhoto{display:block;width:100%;aspect-ratio:4/3;background:#fff;overflow:hidden}
+.popularPhoto{display:block;width:100%;aspect-ratio:4/3;background:#f9f9f9;overflow:hidden}
 .popularPhoto img{width:100%;height:100%;object-fit:contain;display:block}
 .popularPhotoLoading{background:linear-gradient(90deg,rgba(128,140,160,.12),rgba(128,140,160,.28),rgba(128,140,160,.12));background-size:200% 100%;animation:popularShimmer 1.2s linear infinite}
 

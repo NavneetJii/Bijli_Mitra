@@ -463,13 +463,11 @@ const VILLAGE_OPTIONS = [
 // currently active, so renaming/deactivating a service never breaks the page.
 const POPULAR_SERVICES = [
   { match: "Ceiling fan repair", image: "/popular/fan-repair.jpg", icon: "🌀", label: "Fan repair" },
-  { match: "Capacitor Installation in Fan", image: "/popular/fan-capacitor.jpg", icon: "🌀", label: "Fan capacitor change" },
   { match: "Tube light repair or installation", image: "/popular/tube-light.jpg", icon: "💡", label: "Tube light fix" },
   { match: "Bulb installation or replacement", image: "/popular/bulb.jpg", icon: "💡", label: "Bulb fitting" },
-  { match: "New socket or switch installation", image: "/popular/switch-socket.jpg", icon: "🔌", label: "Switch / socket" },
-  { match: "MCB or fuse replacement", image: "/popular/mcb-fuse.jpg", icon: "⚡", label: "MCB / fuse change" },
   { match: "Short Circuit Detection & Repair", image: "/popular/short-circuit.jpg", icon: "⚠️", label: "Short circuit repair" },
-  { match: "Capacitor Installation in Motor", image: "/popular/motor-capacitor.jpg", icon: "🚰", label: "Water motor capacitor" }
+  { match: "Capacitor Installation in Motor", image: "/popular/motor-capacitor.jpg", icon: "🚰", label: "Water motor capacitor" },
+  { match: "MCB or fuse replacement", image: "/popular/mcb-fuse.jpg", icon: "⚡", label: "MCB / fuse change" }
 ];
 
 const SERVICES_CACHE_KEY = "bijlimitra_services_cache_v1";
