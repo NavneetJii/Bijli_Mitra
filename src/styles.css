@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Righteous&display=swap");
 /* =========================================================================
    BijliMitra — design tokens
    Palette grounded in the electrician's world: hazard-tape amber for the
@@ -116,7 +117,22 @@ a{ color: inherit; }
   letter-spacing: -0.01em;
 }
 .brandText{ display:flex; flex-direction:column; line-height:1.15; }
-.brandName{ font-weight: 600; font-size: 18px; color:#fff; }
+.brandName{
+  font-family: "Righteous", var(--font-head);
+  font-weight: 400; font-size: 21px; letter-spacing: .4px; color:#fff;
+  display:inline-flex; align-items:baseline; white-space:nowrap;
+}
+.bnBijli{
+  background: linear-gradient(180deg, #FFE27A 0%, #F2B705 55%, #D99A00 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  filter: drop-shadow(0 0 6px rgba(242,183,5,.45));
+}
+.bnMitra{ color:#fff; }
+.bnService{
+  margin-left: 3px; font-size: .62em; letter-spacing: 1.6px; text-transform: uppercase;
+  color: #F2B705; position: relative; top: -.05em;
+}
 .brandTagline{
   font-family: var(--font-body);
   font-style: italic;
@@ -672,6 +688,9 @@ tr.clickableRow:hover td{ background: var(--paper-raised, #f7f6ef); }
 
   .topbar{ padding: 10px 14px; }
   .brand{ font-size: 16px; }
+  .brandName{ font-size: 16px; letter-spacing: 0; }
+  .bnService{ letter-spacing: .8px; margin-left: 2px; }
+  .brandIcon{ width: 30px; height: 30px; }
   .topActions{ gap: 6px; }
   .userBadge{ max-width: 42vw; display:flex; align-items:center; gap:4px; }
   .userName{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -770,3 +789,15 @@ tr.clickableRow:hover td{ background: var(--paper-raised, #f7f6ef); }
 .popularLoading{cursor:default;opacity:.7}
 .popularLoading .popularPrice{display:block;width:60%;height:12px;border-radius:6px;background:linear-gradient(90deg,rgba(128,140,160,.15),rgba(128,140,160,.35),rgba(128,140,160,.15));background-size:200% 100%;animation:popularShimmer 1.2s linear infinite}
 @keyframes popularShimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+
+/* Popular services: product-style photos */
+.popularCard{padding:0;overflow:hidden;gap:0}
+.popularCard > b, .popularCard > .popularPrice{padding:0 12px}
+.popularCard > b{margin-top:10px}
+.popularCard > .popularPrice{margin:2px 0 12px}
+.popularIcon{display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:4/3;background:#fff;font-size:44px}
+.popularPhoto{display:block;width:100%;aspect-ratio:4/3;background:#fff;overflow:hidden}
+.popularPhoto img{width:100%;height:100%;object-fit:contain;display:block}
+.popularPhotoLoading{background:linear-gradient(90deg,rgba(128,140,160,.12),rgba(128,140,160,.28),rgba(128,140,160,.12));background-size:200% 100%;animation:popularShimmer 1.2s linear infinite}
+
+@media (max-width: 380px){ .brandIcon{ display:none; } .brandName{ font-size: 15px; } }

@@ -254,7 +254,7 @@ function istDateString(offsetDays = 0) {
 function Header({ user, profile, role, onLogout, onLogin, onSignup }) {
   const { lang, toggleLang, t } = useLanguage();
   return <header className="topbar">
-    <div className="brand"><span className="brandIcon"><Zap size={21}/></span><span className="brandText"><span className="brandName">BijliMitra</span><span className="brandTagline">{t("Serving the Rural India")}</span></span></div>
+    <div className="brand"><span className="brandIcon"><Zap size={21}/></span><span className="brandText"><span className="brandName" aria-label="BijliMitraService"><span className="bnBijli">Bijli</span><span className="bnMitra">Mitra</span><span className="bnService">Service</span></span><span className="brandTagline">{t("Serving the Rural India")}</span></span></div>
     <div className="topActions">
       <button className="langToggle" onClick={toggleLang} title="Switch language">
         <span className={lang==="en"?"active":""}>EN</span>
@@ -397,6 +397,14 @@ function Auth({ onDone,onBackHome ,initialMode = "login" }) {
   </div>;
 }
 
+// Shows the service photo from /public/popular/ when it exists; falls back to
+// the emoji if the file is missing or fails to load (slow/blocked network).
+function PopularImage({src,icon}) {
+  const [failed,setFailed]=useState(false);
+  if(!src || failed) return <span className="popularIcon" aria-hidden="true">{icon}</span>;
+  return <span className="popularPhoto"><img src={src} alt="" loading="lazy" decoding="async" onError={()=>setFailed(true)}/></span>;
+}
+
 function ServiceCard({s, qty, onChange}) {
   return <div className="serviceCard">
     <div>
@@ -454,14 +462,14 @@ const VILLAGE_OPTIONS = [
 // service name in the catalog; a card only appears if that service is
 // currently active, so renaming/deactivating a service never breaks the page.
 const POPULAR_SERVICES = [
-  { match: "Ceiling fan repair", icon: "🌀", label: "Fan repair" },
-  { match: "Capacitor Installation in Fan", icon: "🌀", label: "Fan capacitor change" },
-  { match: "Tube light repair or installation", icon: "💡", label: "Tube light fix" },
-  { match: "Bulb installation or replacement", icon: "💡", label: "Bulb fitting" },
-  { match: "New socket or switch installation", icon: "🔌", label: "Switch / socket" },
-  { match: "MCB or fuse replacement", icon: "⚡", label: "MCB / fuse change" },
-  { match: "Short Circuit Detection & Repair", icon: "⚠️", label: "Short circuit repair" },
-  { match: "Capacitor Installation in Motor", icon: "🚰", label: "Water motor capacitor" }
+  { match: "Ceiling fan repair", image: "/popular/fan-repair.jpg", icon: "🌀", label: "Fan repair" },
+  { match: "Capacitor Installation in Fan", image: "/popular/fan-capacitor.jpg", icon: "🌀", label: "Fan capacitor change" },
+  { match: "Tube light repair or installation", image: "/popular/tube-light.jpg", icon: "💡", label: "Tube light fix" },
+  { match: "Bulb installation or replacement", image: "/popular/bulb.jpg", icon: "💡", label: "Bulb fitting" },
+  { match: "New socket or switch installation", image: "/popular/switch-socket.jpg", icon: "🔌", label: "Switch / socket" },
+  { match: "MCB or fuse replacement", image: "/popular/mcb-fuse.jpg", icon: "⚡", label: "MCB / fuse change" },
+  { match: "Short Circuit Detection & Repair", image: "/popular/short-circuit.jpg", icon: "⚠️", label: "Short circuit repair" },
+  { match: "Capacitor Installation in Motor", image: "/popular/motor-capacitor.jpg", icon: "🚰", label: "Water motor capacitor" }
 ];
 
 const SERVICES_CACHE_KEY = "bijlimitra_services_cache_v1";
@@ -851,12 +859,12 @@ if (!selectedItems.length) {
         <div className="popularGrid">
           {popularServices.length>0
             ? popularServices.map(p=><button key={p.service.id} className="popularCard" onClick={()=>pickPopular(p.service)}>
-                <span className="popularIcon" aria-hidden="true">{p.icon}</span>
+                <PopularImage src={p.image} icon={p.icon}/>
                 <b>{t(p.label)}</b>
                 <span className="popularPrice">{t("from")} {money(p.service.price)}</span>
               </button>)
             : POPULAR_SERVICES.map(p=><div key={p.match} className="popularCard popularLoading" aria-busy="true">
-                <span className="popularIcon" aria-hidden="true">{p.icon}</span>
+                <span className="popularPhoto popularPhotoLoading" aria-hidden="true"/>
                 <b>{t(p.label)}</b>
                 <span className="popularPrice">&nbsp;</span>
               </div>)}
