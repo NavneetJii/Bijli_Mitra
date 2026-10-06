@@ -470,6 +470,9 @@ const POPULAR_SERVICES = [
   { match: "MCB or fuse replacement", image: "/popular/mcb-fuse.jpg", icon: "⚡", label: "MCB / fuse change" }
 ];
 
+function readProfileCache(id){ try{ const c=JSON.parse(localStorage.getItem("bijlimitra_profile_"+id)||"null"); return c&&c.id===id?c:null; }catch(e){ return null; } }
+function writeProfileCache(id,p){ try{ localStorage.setItem("bijlimitra_profile_"+id, JSON.stringify(p)); }catch(e){} }
+
 const SERVICES_CACHE_KEY = "bijlimitra_services_cache_v1";
 function readServicesCache(){
   try{
@@ -699,9 +702,9 @@ const servicesByCategory = useMemo(()=>{
 
     // These require the customer to be logged in
     if (user && supabaseConfigured) {
-      const locs = await getLocations(user.id);
+      const [locs, ords] = await Promise.all([getLocations(user.id), getCustomerOrders(user.id)]);
       setLocations(locs);
-      setOrders(await getCustomerOrders(user.id));
+      setOrders(ords);
 
       // A guest who reached the payment step and was asked to log in /
       // sign up: put their cart and address back so they land on the
@@ -1319,9 +1322,9 @@ function Admin({user}) {
 
   async function load(){
     try{
-      const [dp, el, or, po, vs] = await Promise.all([getDailyPayments(30), getAdminElectricians(), getAdminOrders(100), getAdminPendingOrders(), getVisitorStats(60)]);
+      const [dp, el, or, po, vs, rv] = await Promise.all([getDailyPayments(30), getAdminElectricians(), getAdminOrders(100), getAdminPendingOrders(), getVisitorStats(60), getAdminReviews().catch(e=>{ console.error('reviews load failed', e); return null; })]);
       setDailyPayments(dp); setElectricians(el); setOrders(or); setPendingOrders(po); setVisitorStats(vs);
-      try{ setReviews(await getAdminReviews()); }catch(e){ console.error('reviews load failed', e); }
+      if(rv) setReviews(rv);
     }catch(e){ setMsg(errorText(e)); }
     finally{ setLoading(false); }
   }
@@ -1669,7 +1672,13 @@ function App() {
     setLoading(true);
     try {
       const u=await currentUser(); setUser(u);
-      if(u && supabaseConfigured){const p=await getProfile(u.id);setProfile(p)}
+      if(u && supabaseConfigured){
+        // Show the app right away from the last known profile (role/name)
+        // and refresh it in the background; first-ever login waits once.
+        const cached = readProfileCache(u.id);
+        if(cached){ setProfile(cached); setLoading(false); }
+        const p=await getProfile(u.id); setProfile(p); writeProfileCache(u.id,p);
+      }
     } catch(e){console.error(e)} finally{setLoading(false)}
   }
  useEffect(() => {
@@ -1692,7 +1701,10 @@ function App() {
       // "set new password" screen instead of the normal app.
       setPasswordRecovery(true);
     }
-    setUser(session?.user ?? null);
+    // Supabase fires this on every tab refocus / token refresh with a brand
+    // new user object. Keep the SAME object when it's the same person, so
+    // screens don't reload their data (and flash) for no reason.
+    setUser(prev => (prev && session?.user && prev.id === session.user.id) ? prev : (session?.user ?? null));
 
     if (!session) {
       setProfile(null);

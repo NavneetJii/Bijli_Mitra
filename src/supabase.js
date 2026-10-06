@@ -14,8 +14,11 @@ export const supabase = supabaseConfigured
 
 export async function currentUser() {
   if (!supabase) return null;
-  const { data: { user } } = await supabase.auth.getUser();
-  return user ?? null;
+  // getSession() reads the saved login from the device (no network wait);
+  // getUser() made a round trip to the auth server on every app start.
+  // Data access is still protected server-side by row-level security.
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user ?? null;
 }
 
 export async function signIn(email, password) {
