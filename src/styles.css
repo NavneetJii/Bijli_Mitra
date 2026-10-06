@@ -393,18 +393,29 @@ a{ color: inherit; }
 }
 
 /* ---------- home menu + page header ---------- */
-.menuGrid{ display:flex; flex-direction:column; gap:10px; max-width: 520px; }
+/* Home menu: one aligned row of equal tiles (2x2 on phones, 4 across on wider screens) */
+.menuGrid{
+  display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px;
+  max-width: 760px;
+}
+@media (min-width: 640px){ .menuGrid{ grid-template-columns: repeat(4, minmax(0,1fr)); } }
+.menuGrid > .menuCard:only-child{ grid-column: 1 / -1; }
 .menuCard{
-  display:flex; align-items:center; gap:14px; text-align:left;
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+  gap:8px; text-align:center;
   background:#fff; border:1px solid var(--line); border-radius: var(--radius-m);
-  padding: 16px 18px; cursor:pointer;
+  padding: 16px 10px; cursor:pointer; min-height: 112px;
 }
 .menuCard:hover{ border-color: var(--copper); }
-.menuCard svg:first-child{ color: var(--copper); flex-shrink:0; }
-.menuCard div{ flex:1; display:flex; flex-direction:column; }
-.menuCard b{ font-size: 15px; }
-.menuCard span{ font-size: 12.5px; color: var(--muted); margin-top:2px; }
-.menuCard svg:last-child{ color: var(--muted); flex-shrink:0; }
+.menuCard svg:first-child{
+  color: var(--copper); flex-shrink:0;
+  box-sizing: content-box; padding: 9px; border-radius: 50%;
+  background: rgba(166,90,52,.10);
+}
+.menuCard div{ flex:1; display:flex; flex-direction:column; align-items:center; }
+.menuCard b{ font-size: 14.5px; }
+.menuCard span{ font-size: 11.5px; color: var(--muted); margin-top:3px; line-height:1.3; }
+.menuCard svg:last-child{ display:none; }
 
 .pageHeader{
   display:flex; align-items:center; gap:12px;
