@@ -17,7 +17,7 @@ import {
   getAdminPendingOrders, routeOrderToElectrician, unrouteOrder,
   requestPasswordReset, updatePassword, getOrderById, createElectrician,
   updateOwnPhone, adminUpdateElectricianPhone,
-  recordSiteVisit, getVisitorStats,
+  recordSiteVisit, getVisitorStats, getVisitorsByArea,
   replaceCustomerService,
   addReview, getOrderReview, getMyReviews, getAdminReviews, setReviewStatus
 } from "./supabase";
@@ -1269,6 +1269,10 @@ function Admin({user}) {
   const [electricianPhoneBusy,setElectricianPhoneBusy]=useState(false);
   const [electricianPhoneErr,setElectricianPhoneErr]=useState("");
   const [visitorStats,setVisitorStats]=useState([]);
+  const [areaRows,setAreaRows]=useState([]);
+  const [areaDays,setAreaDays]=useState(30);
+  const [showAllAreas,setShowAllAreas]=useState(false);
+  useEffect(()=>{ getVisitorsByArea(areaDays).then(setAreaRows).catch(e=>{ console.error('area load failed',e); setAreaRows([]); }); },[areaDays]);
   const [reviews,setReviews]=useState([]), [reviewFilter,setReviewFilter]=useState("all"), [reviewBusy,setReviewBusy]=useState(null);
   const [visitorDateFilter,setVisitorDateFilter]=useState("");
 
@@ -1425,6 +1429,31 @@ function Admin({user}) {
         </table>
       </div>
       {!visitorDateFilter && visitorStats.length>3 && <p className="muted tableHint">Showing the 3 most recent days — use the calendar above to see any other date.</p>}
+    </div>
+
+    <div className="panel adminSection">
+      <div className="sectionHead">
+        <div><h2>Visitors by area</h2><p>Approximate state / city, taken from the network a visitor connects through — on mobile data it can show a nearby bigger city (often Patna). No IP address is stored.</p></div>
+        <div className="dateFilter">
+          <select value={areaDays} onChange={e=>setAreaDays(Number(e.target.value))}>
+            <option value={1}>Today</option><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option>
+          </select>
+        </div>
+      </div>
+      <div className="tableWrap">
+        <table className="adminTable">
+          <thead><tr><th>State / region</th><th>City</th><th>Visitors</th></tr></thead>
+          <tbody>
+            {(showAllAreas?areaRows:areaRows.slice(0,5)).map((a,i)=><tr key={i}>
+              <td>{a.region||"Unknown"}{a.country && a.country!=="IN" ? ` (${a.country})` : ""}</td>
+              <td>{a.city||"Unknown"}</td>
+              <td>{a.visitors}</td>
+            </tr>)}
+            {!areaRows.length && <tr><td colSpan="3" className="muted">No area data yet — it fills in as new visitors arrive.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      {areaRows.length>5 && <button className="ghost" onClick={()=>setShowAllAreas(v=>!v)}>{showAllAreas?"Show top 5":`Show all ${areaRows.length}`}</button>}
     </div>
 
     <div className="adminGrid">
