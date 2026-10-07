@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useContext, createContext } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import {
   Zap, MapPin, ShoppingCart, User, LogOut, ClipboardList,
   Plus, Minus, CheckCircle2, Clock3, Wrench, CreditCard,
@@ -1805,5 +1806,5 @@ return (
 }
 
 export default function Root(){
-  return <LanguageProvider><App/></LanguageProvider>;
+  return <LanguageProvider><App/><Analytics/></LanguageProvider>;
 }
