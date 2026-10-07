@@ -145,16 +145,6 @@ export async function recordSiteVisit() {
       // SELECT policy on site_visits), so customers and logged-out visitors
       // were never counted. The function runs with its own privileges and
       // still keeps one row per visitor per day.
-      // First choice: our /api/visit function, which also records the
-      // visitor's approximate area (state/city) from Vercel's geo headers.
-      try {
-        const resp = await fetch("/api/visit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ visitorId, userAgent: navigator.userAgent })
-        });
-        if (resp.ok) return;
-      } catch (e) { /* fall through to the direct call below */ }
       const { error } = await supabase.rpc("record_site_visit", {
         p_visitor_id: visitorId,
         p_user_agent: navigator.userAgent
@@ -182,13 +172,6 @@ export async function getVisitorStats(days = 30) {
     .from("admin_daily_visitors")
     .select("*")
     .limit(days);
-  if (error) throw error;
-  return data ?? [];
-}
-
-/** Admin-only: visitors grouped by approximate area for the last N days. */
-export async function getVisitorsByArea(days = 30) {
-  const { data, error } = await supabase.rpc("admin_visitors_by_area", { p_days: days });
   if (error) throw error;
   return data ?? [];
 }
