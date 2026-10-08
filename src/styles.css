@@ -119,20 +119,12 @@ a{ color: inherit; }
 .brandText{ display:flex; flex-direction:column; line-height:1.15; }
 .brandName{
   font-family: "Righteous", var(--font-head);
-  font-weight: 400; font-size: 21px; letter-spacing: .4px; color:#fff;
+  font-weight: 400; font-size: 26px; line-height:1; letter-spacing: 0; color:#fff;
   display:inline-flex; align-items:baseline; white-space:nowrap;
 }
-.bnBijli{
-  background: linear-gradient(180deg, #FFE27A 0%, #F2B705 55%, #D99A00 100%);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent;
-  filter: drop-shadow(0 0 6px rgba(242,183,5,.45));
-}
-.bnMitra{ color:#fff; }
-.bnService{
-  margin-left: 3px; font-size: .62em; letter-spacing: 1.6px; text-transform: uppercase;
-  color: #F2B705; position: relative; top: -.05em;
-}
+.bnBijli{ color:#FFFFFF; }
+.bnMitra{ color:#F2B705; }
+.bnService{ color:#9FB3C8; font-size:.72em; margin-left:2px; letter-spacing:0; text-transform:none; }
 .brandTagline{
   font-family: var(--font-body);
   font-style: italic;
@@ -144,11 +136,10 @@ a{ color: inherit; }
 }
 .brandIcon{
   display:flex; align-items:center; justify-content:center;
-  width: 30px; height:30px;
-  background: var(--live);
-  color: var(--live-ink);
-  border-radius: var(--radius-s);
+  background: transparent;
+  color: #F2B705;
 }
+.brandIcon svg{ width:22px; height:22px; }
 .topActions{ display:flex; align-items:center; gap:10px; }
 .langToggle{
   display:flex; align-items:center; background: rgba(255,255,255,0.1);
@@ -699,9 +690,7 @@ tr.clickableRow:hover td{ background: var(--paper-raised, #f7f6ef); }
 
   .topbar{ padding: 10px 14px; }
   .brand{ font-size: 16px; }
-  .brandName{ font-size: 16px; letter-spacing: 0; }
-  .bnService{ letter-spacing: .8px; margin-left: 2px; }
-  .brandIcon{ width: 30px; height: 30px; }
+  .brandName{ font-size: 21px; letter-spacing: 0; }
   .topActions{ gap: 6px; }
   .userBadge{ max-width: 42vw; display:flex; align-items:center; gap:4px; }
   .userName{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -838,7 +827,7 @@ tr.clickableRow:hover td{ background: var(--paper-raised, #f7f6ef); }
 .popularPhoto img{width:100%;height:100%;object-fit:contain;display:block}
 .popularPhotoLoading{background:linear-gradient(90deg,rgba(128,140,160,.12),rgba(128,140,160,.28),rgba(128,140,160,.12));background-size:200% 100%;animation:popularShimmer 1.2s linear infinite}
 
-@media (max-width: 380px){ .brandIcon{ display:none; } .brandName{ font-size: 15px; } }
+@media (max-width: 380px){ .brandIcon{ display:none; } .brandName{ font-size: 18px; } }
 
 
 /* ---- Hindi notice (front page): scrolling welcome line + fixed call/suggestion lines ---- */
