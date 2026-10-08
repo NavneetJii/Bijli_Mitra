@@ -3,7 +3,7 @@ import { Analytics } from "@vercel/analytics/react";
 import {
   Zap, MapPin, ShoppingCart, User, LogOut, ClipboardList,
   Plus, Minus, CheckCircle2, Clock3, Wrench, CreditCard,
-  ShieldCheck, ChevronRight, ChevronLeft, ChevronDown, X, RefreshCw, Wallet, Eye, EyeOff, Lock, Pencil, Check, Star
+  ShieldCheck, ChevronRight, ChevronLeft, ChevronDown, X, RefreshCw, Wallet, Eye, EyeOff, Lock, Pencil, Check, Star, Phone
 } from "lucide-react";
 import {
   supabase, supabaseConfigured, currentUser, signIn, signUp, signOut, signInWithGoogle,
@@ -117,6 +117,12 @@ const HI = {
   "Give the Start PIN to your electrician once they arrive. Give the Completed PIN only after the work is fully done.": "इलेक्ट्रीशियन के पहुँचने पर उन्हें स्टार्ट पिन दें। पूर्ण पिन केवल तभी दें जब कार्य पूरी तरह से हो जाए।",
   "An undertaking of Kashvi Enterprises": "काश्वी एंटरप्राइजेज़ का एक उपक्रम",
   "Privacy Policy": "गोपनीयता नीति",
+  "Serving Begusarai, Teghra, Barauni and nearby areas": "बेगूसराय, तेघड़ा, बरौनी एवं आसपास के इलाकों में सेवा",
+  "Contact us": "संपर्क करें",
+  "Call us": "कॉल करें",
+  "Quick links": "उपयोगी लिंक",
+  "All rights reserved.": "सर्वाधिकार सुरक्षित।",
+  "Trusted electricians at your doorstep": "भरोसेमंद इलेक्ट्रीशियन, आपके द्वार पर",
   "Phone number can't be empty.": "फ़ोन नंबर खाली नहीं हो सकता।",
   "Enter phone number": "फ़ोन नंबर दर्ज करें",
   "Save": "सहेजें",
@@ -1658,16 +1664,24 @@ function Footer() {
   const { t } = useLanguage();
   return <footer className="siteFooter">
     <div className="siteFooterInner">
-      <div className="siteFooterBrand"><Zap size={16}/> BijliMitra</div>
-      <div className="siteFooterInfo">
-        <span><b>{t("An undertaking of Kashvi Enterprises")}</b></span>
-        <span>·</span>
-        <span>Bihat, Ward No. 11, Mandir Marg, Barauni, Begusarai, Bihar — 851115</span>
-        <span>·</span>
-        <a href="tel:+919189392121">+91 91893 92121</a>
-        <span>·</span>
-        <a href="/privacy.html">{t("Privacy Policy")}</a>
+      <div className="footCol footBrand">
+        <div className="footWordmark" aria-label="BijliMitraService"><Zap size={22}/><span><span className="fwBijli">Bijli</span><span className="fwMitra">Mitra</span><span className="fwService">Service</span></span></div>
+        <p className="footTag">{t("Trusted electricians at your doorstep")}</p>
+        <p className="footArea"><MapPin size={14}/> {t("Serving Begusarai, Teghra, Barauni and nearby areas")}</p>
       </div>
+      <div className="footCol">
+        <h4>{t("Contact us")}</h4>
+        <p className="footAddr"><MapPin size={15}/> <span>Bihat, Ward No. 11, Mandir Marg, Barauni, Begusarai, Bihar — 851115</span></p>
+        <a className="footCall" href="tel:+919189392121"><Phone size={16}/> <span>{t("Call us")}</span> <b>+91 91893 92121</b></a>
+      </div>
+      <div className="footCol">
+        <h4>{t("Quick links")}</h4>
+        <a className="footLink" href="/privacy.html"><ShieldCheck size={15}/> {t("Privacy Policy")}</a>
+      </div>
+    </div>
+    <div className="footBottom">
+      <span>© {new Date().getFullYear()} <b>{t("An undertaking of Kashvi Enterprises")}</b></span>
+      <span>{t("All rights reserved.")}</span>
     </div>
   </footer>;
 }
