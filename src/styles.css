@@ -812,3 +812,44 @@ tr.clickableRow:hover td{ background: var(--paper-raised, #f7f6ef); }
 .popularPhotoLoading{background:linear-gradient(90deg,rgba(128,140,160,.12),rgba(128,140,160,.28),rgba(128,140,160,.12));background-size:200% 100%;animation:popularShimmer 1.2s linear infinite}
 
 @media (max-width: 380px){ .brandIcon{ display:none; } .brandName{ font-size: 15px; } }
+
+
+/* ---- Hindi notice (front page): scrolling welcome line + fixed call/suggestion lines ---- */
+.noticeMarquee{
+  overflow:hidden; background:#12181F; color:#FFF6D6;
+  border-radius:12px 12px 0 0; margin:0;
+  border:1px solid #F2B705; border-bottom:0;
+}
+.noticeTrack{ display:flex; width:max-content; animation:noticeScroll 32s linear infinite; }
+.noticeMarquee:hover .noticeTrack, .noticeMarquee:active .noticeTrack{ animation-play-state:paused; }
+.noticeSet{ display:flex; align-items:center; flex-shrink:0; }
+.noticeItem{
+  white-space:nowrap; padding:11px 40px 11px 28px; font-size:17px; font-weight:700; line-height:1.4;
+  position:relative;
+}
+.noticeItem::after{ content:"•"; color:#F2B705; position:absolute; right:14px; }
+.noticeFixed{
+  background:#FFF6D6; color:#12181F; border:1px solid #F2B705; border-top:0;
+  border-radius:0 0 12px 12px; margin:0 0 12px; padding:10px 14px;
+  box-shadow:0 2px 10px rgba(242,183,5,.25);
+}
+.noticeFixed p{ margin:0; line-height:1.55; }
+.noticeCallLine{ font-size:17px; font-weight:800; }
+.noticeCallLine a{
+  display:inline-block; color:#FFFFFF; background:#C0392B; padding:3px 12px;
+  border-radius:999px; text-decoration:none; white-space:nowrap; margin-left:4px;
+}
+.noticeThanks{ font-size:15px; font-weight:600; color:#3B4552; margin-top:6px !important; }
+@keyframes noticeScroll{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+@media (max-width:640px){
+  .noticeItem{ font-size:15px; padding:9px 34px 9px 22px; }
+  .noticeCallLine{ font-size:16px; }
+  .noticeThanks{ font-size:14px; }
+  .noticeTrack{ animation-duration:28s; }
+}
+@media (prefers-reduced-motion: reduce){
+  .noticeTrack{ animation:none; width:auto; }
+  .noticeSet[aria-hidden="true"]{ display:none; }
+  .noticeItem{ white-space:normal; }
+  .noticeItem::after{ display:none; }
+}

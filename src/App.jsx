@@ -842,6 +842,17 @@ if (!selectedItems.length) {
   }
   return <div className="page">
     {tab==="home" ? <>
+      <div className="noticeMarquee" role="region" aria-label="सूचना">
+        <div className="noticeTrack">
+          {[0,1].map(i=><div className="noticeSet" key={i} aria-hidden={i===1?"true":undefined}>
+            <span className="noticeItem">⚡ आपके शहर बेगूसराय, तेघड़ा, बरौनी एवं आसपास के इलाकों में बिजली की हर सेवा अब बस एक क्लिक पर!</span>
+          </div>)}
+        </div>
+      </div>
+      <div className="noticeFixed">
+        <p className="noticeCallLine">📞 बुकिंग में आने वाली किसी भी समस्या एवं सुझाव के लिए तुरंत कॉल करें : <a href="tel:+919189392121">+91 91893 92121</a></p>
+        <p className="noticeThanks">💛 आपके हर सुझाव का हमें बेसब्री से इंतज़ार है और हम आपके प्रत्येक सुझाव का हृदय से सम्मान करते हैं।</p>
+      </div>
       <section className="hero">
         <div className="heroCopy">
           <h1>{t("Book a certified electrician for today.")}</h1>
